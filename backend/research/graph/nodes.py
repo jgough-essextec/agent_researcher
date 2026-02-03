@@ -29,37 +29,32 @@ def validate_input(state: ResearchState) -> ResearchState:
 
 
 def conduct_research(state: ResearchState) -> ResearchState:
-    """Conduct deep research using Gemini API."""
+    """Conduct deep research using Gemini API (AGE-10)."""
     if state.get('status') == 'failed':
         return state
 
     try:
-        from google import genai
+        from ..services.gemini import GeminiClient
 
-        # Initialize Gemini client
-        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        client = GeminiClient()
 
-        # Format the prompt with client information
-        prompt_template = state.get('prompt', '')
-        if not prompt_template:
-            from prompts.models import PromptTemplate
-            prompt_template = PromptTemplate.get_default().content
-
-        formatted_prompt = prompt_template.format(
+        # Conduct structured deep research
+        report_data = client.conduct_deep_research(
             client_name=state.get('client_name', ''),
-            sales_history=state.get('sales_history', 'No sales history provided'),
+            sales_history=state.get('sales_history', ''),
         )
 
-        # Use Gemini for research
-        response = client.models.generate_content(
-            model='gemini-2.0-flash',
-            contents=formatted_prompt,
-        )
+        # Convert to dict for state storage
+        report_dict = report_data.to_dict()
+
+        # Also generate plain text result for backward compatibility
+        result_text = _format_research_result(report_dict)
 
         return {
             **state,
-            'status': 'completed',
-            'result': response.text,
+            'status': 'classifying',
+            'result': result_text,
+            'research_report': report_dict,
         }
 
     except Exception as e:
@@ -71,12 +66,306 @@ def conduct_research(state: ResearchState) -> ResearchState:
         }
 
 
-def finalize_result(state: ResearchState) -> ResearchState:
-    """Finalize the research result."""
+def classify_vertical(state: ResearchState) -> ResearchState:
+    """Classify the company into an industry vertical (AGE-11)."""
     if state.get('status') == 'failed':
         return state
+
+    try:
+        from ..services.gemini import GeminiClient
+        from ..services.classifier import VerticalClassifier
+
+        gemini_client = GeminiClient()
+        classifier = VerticalClassifier(gemini_client=gemini_client)
+
+        report = state.get('research_report', {})
+        vertical = classifier.classify(
+            client_name=state.get('client_name', ''),
+            company_overview=report.get('company_overview', ''),
+            use_llm=True,
+        )
+
+        return {
+            **state,
+            'status': 'competitor_search',
+            'vertical': vertical,
+        }
+
+    except Exception as e:
+        logger.exception("Error during vertical classification")
+        # Non-fatal, continue with 'other' vertical
+        return {
+            **state,
+            'status': 'competitor_search',
+            'vertical': 'other',
+        }
+
+
+def search_competitors(state: ResearchState) -> ResearchState:
+    """Search for competitor AI case studies (AGE-12)."""
+    if state.get('status') == 'failed':
+        return state
+
+    try:
+        from ..services.gemini import GeminiClient
+        from ..services.competitor import CompetitorSearchService
+
+        gemini_client = GeminiClient()
+        competitor_service = CompetitorSearchService(gemini_client)
+
+        report = state.get('research_report', {})
+        case_studies = competitor_service.search_competitor_case_studies(
+            client_name=state.get('client_name', ''),
+            vertical=state.get('vertical', 'other'),
+            company_overview=report.get('company_overview', ''),
+        )
+
+        # Convert to list of dicts for state storage
+        case_studies_list = [
+            {
+                'competitor_name': cs.competitor_name,
+                'vertical': cs.vertical,
+                'case_study_title': cs.case_study_title,
+                'summary': cs.summary,
+                'technologies_used': cs.technologies_used,
+                'outcomes': cs.outcomes,
+                'source_url': cs.source_url,
+                'relevance_score': cs.relevance_score,
+            }
+            for cs in case_studies
+        ]
+
+        return {
+            **state,
+            'status': 'gap_analysis',
+            'competitor_case_studies': case_studies_list,
+        }
+
+    except Exception as e:
+        logger.exception("Error during competitor search")
+        # Non-fatal, continue without competitor data
+        return {
+            **state,
+            'status': 'gap_analysis',
+            'competitor_case_studies': [],
+        }
+
+
+def analyze_gaps(state: ResearchState) -> ResearchState:
+    """Analyze technology and capability gaps (AGE-13)."""
+    if state.get('status') == 'failed':
+        return state
+
+    try:
+        from ..services.gemini import GeminiClient
+        from ..services.gap_analysis import GapAnalysisService
+
+        gemini_client = GeminiClient()
+        gap_service = GapAnalysisService(gemini_client)
+
+        report = state.get('research_report', {})
+        gap_data = gap_service.analyze_gaps(
+            client_name=state.get('client_name', ''),
+            vertical=state.get('vertical', 'other'),
+            company_overview=report.get('company_overview', ''),
+            sales_history=state.get('sales_history', ''),
+        )
+
+        # Convert to dict for state storage
+        gap_dict = {
+            'technology_gaps': gap_data.technology_gaps,
+            'capability_gaps': gap_data.capability_gaps,
+            'process_gaps': gap_data.process_gaps,
+            'recommendations': gap_data.recommendations,
+            'priority_areas': gap_data.priority_areas,
+            'confidence_score': gap_data.confidence_score,
+            'analysis_notes': gap_data.analysis_notes,
+        }
+
+        return {
+            **state,
+            'status': 'completed',
+            'gap_analysis': gap_dict,
+        }
+
+    except Exception as e:
+        logger.exception("Error during gap analysis")
+        # Non-fatal, continue without gap analysis
+        return {
+            **state,
+            'status': 'completed',
+            'gap_analysis': None,
+        }
+
+
+def finalize_result(state: ResearchState) -> ResearchState:
+    """Finalize the research result and persist to database."""
+    if state.get('status') == 'failed':
+        return state
+
+    try:
+        from ..models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis
+
+        job_id = state.get('job_id')
+        if not job_id:
+            logger.warning("No job_id in state, skipping database persistence")
+            return {**state, 'status': 'completed'}
+
+        job = ResearchJob.objects.get(id=job_id)
+
+        # Save vertical to job
+        if state.get('vertical'):
+            job.vertical = state['vertical']
+            job.save(update_fields=['vertical'])
+
+        # Create ResearchReport
+        report_data = state.get('research_report', {})
+        if report_data:
+            ResearchReport.objects.update_or_create(
+                research_job=job,
+                defaults={
+                    'company_overview': report_data.get('company_overview', ''),
+                    'founded_year': report_data.get('founded_year'),
+                    'headquarters': report_data.get('headquarters', ''),
+                    'employee_count': report_data.get('employee_count', ''),
+                    'annual_revenue': report_data.get('annual_revenue', ''),
+                    'website': report_data.get('website', ''),
+                    'recent_news': report_data.get('recent_news', []),
+                    'decision_makers': report_data.get('decision_makers', []),
+                    'pain_points': report_data.get('pain_points', []),
+                    'opportunities': report_data.get('opportunities', []),
+                    'digital_maturity': report_data.get('digital_maturity', ''),
+                    'ai_footprint': report_data.get('ai_footprint', ''),
+                    'ai_adoption_stage': report_data.get('ai_adoption_stage', ''),
+                    'strategic_goals': report_data.get('strategic_goals', []),
+                    'key_initiatives': report_data.get('key_initiatives', []),
+                    'talking_points': report_data.get('talking_points', []),
+                }
+            )
+
+        # Create CompetitorCaseStudy records
+        case_studies = state.get('competitor_case_studies', [])
+        for cs in case_studies:
+            CompetitorCaseStudy.objects.create(
+                research_job=job,
+                competitor_name=cs.get('competitor_name', ''),
+                vertical=cs.get('vertical', ''),
+                case_study_title=cs.get('case_study_title', ''),
+                summary=cs.get('summary', ''),
+                technologies_used=cs.get('technologies_used', []),
+                outcomes=cs.get('outcomes', []),
+                source_url=cs.get('source_url', ''),
+                relevance_score=cs.get('relevance_score', 0.0),
+            )
+
+        # Create GapAnalysis record
+        gap_data = state.get('gap_analysis')
+        if gap_data:
+            GapAnalysis.objects.update_or_create(
+                research_job=job,
+                defaults={
+                    'technology_gaps': gap_data.get('technology_gaps', []),
+                    'capability_gaps': gap_data.get('capability_gaps', []),
+                    'process_gaps': gap_data.get('process_gaps', []),
+                    'recommendations': gap_data.get('recommendations', []),
+                    'priority_areas': gap_data.get('priority_areas', []),
+                    'confidence_score': gap_data.get('confidence_score', 0.0),
+                    'analysis_notes': gap_data.get('analysis_notes', ''),
+                }
+            )
+
+        logger.info(f"Successfully finalized research job {job_id}")
+
+        # Auto-capture to memory (AGE-17)
+        try:
+            from memory.services import MemoryCapture
+            capture = MemoryCapture()
+            capture_result = capture.capture_from_research(job)
+            logger.info(f"Memory capture result: {capture_result}")
+        except Exception as mem_error:
+            logger.warning(f"Memory capture failed (non-fatal): {mem_error}")
+
+    except Exception as e:
+        logger.exception("Error during finalization")
+        # Non-fatal for finalization, research is still complete
 
     return {
         **state,
         'status': 'completed',
     }
+
+
+def _format_research_result(report: dict) -> str:
+    """Format the research report as plain text for backward compatibility."""
+    sections = []
+
+    if report.get('company_overview'):
+        sections.append(f"## Company Overview\n{report['company_overview']}")
+
+    # Company details
+    details = []
+    if report.get('founded_year'):
+        details.append(f"- Founded: {report['founded_year']}")
+    if report.get('headquarters'):
+        details.append(f"- Headquarters: {report['headquarters']}")
+    if report.get('employee_count'):
+        details.append(f"- Employees: {report['employee_count']}")
+    if report.get('annual_revenue'):
+        details.append(f"- Revenue: {report['annual_revenue']}")
+    if report.get('website'):
+        details.append(f"- Website: {report['website']}")
+    if details:
+        sections.append(f"## Company Details\n" + "\n".join(details))
+
+    # Recent news
+    if report.get('recent_news'):
+        news_items = []
+        for item in report['recent_news']:
+            if isinstance(item, dict):
+                news_items.append(f"- **{item.get('title', 'News')}**: {item.get('summary', '')}")
+            else:
+                news_items.append(f"- {item}")
+        sections.append(f"## Recent News\n" + "\n".join(news_items))
+
+    # Decision makers
+    if report.get('decision_makers'):
+        dm_items = []
+        for dm in report['decision_makers']:
+            if isinstance(dm, dict):
+                dm_items.append(f"- **{dm.get('name', 'Unknown')}** - {dm.get('title', '')}: {dm.get('background', '')}")
+            else:
+                dm_items.append(f"- {dm}")
+        sections.append(f"## Key Decision Makers\n" + "\n".join(dm_items))
+
+    # Pain points
+    if report.get('pain_points'):
+        sections.append(f"## Pain Points\n" + "\n".join(f"- {p}" for p in report['pain_points']))
+
+    # Opportunities
+    if report.get('opportunities'):
+        sections.append(f"## Opportunities\n" + "\n".join(f"- {o}" for o in report['opportunities']))
+
+    # Digital maturity
+    if report.get('digital_maturity') or report.get('ai_footprint'):
+        dm_section = "## Digital & AI Assessment\n"
+        if report.get('digital_maturity'):
+            dm_section += f"- Digital Maturity: {report['digital_maturity'].title()}\n"
+        if report.get('ai_adoption_stage'):
+            dm_section += f"- AI Adoption Stage: {report['ai_adoption_stage'].title()}\n"
+        if report.get('ai_footprint'):
+            dm_section += f"- AI Footprint: {report['ai_footprint']}"
+        sections.append(dm_section)
+
+    # Strategic goals
+    if report.get('strategic_goals'):
+        sections.append(f"## Strategic Goals\n" + "\n".join(f"- {g}" for g in report['strategic_goals']))
+
+    # Key initiatives
+    if report.get('key_initiatives'):
+        sections.append(f"## Key Initiatives\n" + "\n".join(f"- {i}" for i in report['key_initiatives']))
+
+    # Talking points
+    if report.get('talking_points'):
+        sections.append(f"## Recommended Talking Points\n" + "\n".join(f"- {t}" for t in report['talking_points']))
+
+    return "\n\n".join(sections)

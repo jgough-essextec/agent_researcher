@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { api } from '@/lib/api';
 import { ResearchFormData, ResearchJob } from '@/types';
 import PromptEditor from './PromptEditor';
+import ResearchResults from './ResearchResults';
 
 export default function ResearchForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -93,39 +94,7 @@ export default function ResearchForm() {
         </div>
       )}
 
-      {currentJob && (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-            <div className="flex items-center justify-between">
-              <h3 className="font-medium text-gray-900">Research Results</h3>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                currentJob.status === 'completed' ? 'bg-green-100 text-green-800' :
-                currentJob.status === 'failed' ? 'bg-red-100 text-red-800' :
-                currentJob.status === 'running' ? 'bg-blue-100 text-blue-800' :
-                'bg-gray-100 text-gray-800'
-              }`}>
-                {currentJob.status}
-              </span>
-            </div>
-          </div>
-          <div className="p-4">
-            {currentJob.status === 'running' || currentJob.status === 'pending' ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <span className="ml-3 text-gray-600">Researching...</span>
-              </div>
-            ) : currentJob.status === 'failed' ? (
-              <p className="text-red-600">{currentJob.error || 'Research failed'}</p>
-            ) : (
-              <div className="prose prose-sm max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-gray-800 bg-gray-50 p-4 rounded-lg overflow-auto">
-                  {currentJob.result}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {currentJob && <ResearchResults job={currentJob} />}
     </div>
   );
 }

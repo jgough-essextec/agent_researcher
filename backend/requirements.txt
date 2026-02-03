@@ -7,3 +7,9 @@ langgraph>=0.2.0
 langchain-google-genai>=2.0.0
 pytest-django>=4.7
 pytest>=8.0
+# Epic 3: ChromaDB Vector Store
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+# Epic 5: PDF Export
+weasyprint>=60.0
+markdown>=3.5

@@ -32,6 +32,9 @@ ALLOWED_HOSTS = env('ALLOWED_HOSTS')
 # API Keys
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')
 
+# ChromaDB settings
+CHROMA_PERSIST_DIR = env('CHROMA_PERSIST_DIR', default=str(BASE_DIR / 'chroma_data'))
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -46,6 +49,9 @@ INSTALLED_APPS = [
     # Local apps
     'research',
     'prompts',
+    'memory',
+    'ideation',
+    'assets',
 ]
 
 MIDDLEWARE = [
