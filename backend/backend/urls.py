@@ -11,4 +11,5 @@ urlpatterns = [
     path('api/memory/', include('memory.urls')),
     path('api/ideation/', include('ideation.urls')),
     path('api/assets/', include('assets.urls')),
+    path('api/projects/', include('projects.urls')),
 ]

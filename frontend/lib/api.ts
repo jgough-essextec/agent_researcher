@@ -1,4 +1,17 @@
-import { ResearchJob, ResearchFormData, PromptTemplate } from '@/types';
+import {
+  ResearchJob,
+  ResearchFormData,
+  PromptTemplate,
+  ProjectListItem,
+  Project,
+  ProjectCreateData,
+  Iteration,
+  IterationCreateData,
+  WorkProduct,
+  Annotation,
+  TimelineData,
+  IterationComparison,
+} from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -75,6 +88,151 @@ class ApiClient {
     return this.request<PromptTemplate>('/api/prompts/default/', {
       method: 'PUT',
       body: JSON.stringify({ content }),
+    });
+  }
+
+  // Project endpoints
+  async listProjects(): Promise<ProjectListItem[]> {
+    return this.request<ProjectListItem[]>('/api/projects/');
+  }
+
+  async getProject(id: string): Promise<Project> {
+    return this.request<Project>(`/api/projects/${id}/`);
+  }
+
+  async createProject(data: ProjectCreateData): Promise<Project> {
+    return this.request<Project>('/api/projects/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProject(id: string, data: Partial<ProjectCreateData>): Promise<Project> {
+    return this.request<Project>(`/api/projects/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    await this.request(`/api/projects/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Iteration endpoints
+  async listIterations(projectId: string): Promise<Iteration[]> {
+    return this.request<Iteration[]>(`/api/projects/${projectId}/iterations/`);
+  }
+
+  async getIteration(projectId: string, sequence: number): Promise<Iteration> {
+    return this.request<Iteration>(`/api/projects/${projectId}/iterations/${sequence}/`);
+  }
+
+  async createIteration(projectId: string, data: IterationCreateData): Promise<Iteration> {
+    return this.request<Iteration>(`/api/projects/${projectId}/iterations/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async startIteration(projectId: string, sequence: number): Promise<{ iteration_id: string; research_job_id: string; status: string }> {
+    return this.request(`/api/projects/${projectId}/iterations/${sequence}/start/`, {
+      method: 'POST',
+    });
+  }
+
+  async pollIteration(
+    projectId: string,
+    sequence: number,
+    onUpdate: (iteration: Iteration) => void,
+    intervalMs: number = 2000
+  ): Promise<Iteration> {
+    return new Promise((resolve, reject) => {
+      const poll = async () => {
+        try {
+          const iteration = await this.getIteration(projectId, sequence);
+          onUpdate(iteration);
+
+          if (iteration.status === 'completed' || iteration.status === 'failed') {
+            resolve(iteration);
+          } else {
+            setTimeout(poll, intervalMs);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      poll();
+    });
+  }
+
+  // Timeline and comparison
+  async getTimeline(projectId: string): Promise<TimelineData> {
+    return this.request<TimelineData>(`/api/projects/${projectId}/timeline/`);
+  }
+
+  async compareIterations(projectId: string, seqA: number, seqB: number): Promise<IterationComparison> {
+    return this.request<IterationComparison>(`/api/projects/${projectId}/compare/?a=${seqA}&b=${seqB}`);
+  }
+
+  // Work product endpoints
+  async listWorkProducts(projectId: string): Promise<WorkProduct[]> {
+    return this.request<WorkProduct[]>(`/api/projects/${projectId}/work-products/`);
+  }
+
+  async createWorkProduct(projectId: string, data: {
+    content_type: string;
+    object_id: string;
+    category: string;
+    source_iteration_id?: string;
+    notes?: string;
+  }): Promise<WorkProduct> {
+    return this.request<WorkProduct>(`/api/projects/${projectId}/work-products/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateWorkProduct(projectId: string, id: string, data: Partial<WorkProduct>): Promise<WorkProduct> {
+    return this.request<WorkProduct>(`/api/projects/${projectId}/work-products/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteWorkProduct(projectId: string, id: string): Promise<void> {
+    await this.request(`/api/projects/${projectId}/work-products/${id}/`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Annotation endpoints
+  async listAnnotations(projectId: string): Promise<Annotation[]> {
+    return this.request<Annotation[]>(`/api/projects/${projectId}/annotations/`);
+  }
+
+  async createAnnotation(projectId: string, data: {
+    content_type: string;
+    object_id: string;
+    text: string;
+  }): Promise<Annotation> {
+    return this.request<Annotation>(`/api/projects/${projectId}/annotations/`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateAnnotation(projectId: string, id: string, data: { text: string }): Promise<Annotation> {
+    return this.request<Annotation>(`/api/projects/${projectId}/annotations/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteAnnotation(projectId: string, id: string): Promise<void> {
+    await this.request(`/api/projects/${projectId}/annotations/${id}/`, {
+      method: 'DELETE',
     });
   }
 }

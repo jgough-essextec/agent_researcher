@@ -97,3 +97,155 @@ export interface PromptTemplate {
   created_at: string;
   updated_at: string;
 }
+
+// Project-based iterative workflow types
+
+export type ContextMode = 'accumulate' | 'fresh';
+export type IterationStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type WorkProductCategory = 'play' | 'persona' | 'insight' | 'one_pager' | 'case_study' | 'use_case' | 'gap' | 'other';
+
+// Project list item (lightweight)
+export interface ProjectListItem {
+  id: string;
+  name: string;
+  client_name: string;
+  context_mode: ContextMode;
+  iteration_count: number;
+  latest_iteration_status?: IterationStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Iteration list item (lightweight)
+export interface IterationListItem {
+  id: string;
+  sequence: number;
+  name?: string;
+  status: IterationStatus;
+  has_research_job: boolean;
+  created_at: string;
+}
+
+// Full iteration details
+export interface Iteration extends IterationListItem {
+  project: string;
+  sales_history: string;
+  prompt_override: string;
+  inherited_context: Record<string, unknown>;
+  research_job_id?: string;
+  research_job_status?: IterationStatus;
+  work_products: WorkProduct[];
+}
+
+// Work product content preview
+export interface WorkProductPreview {
+  title?: string;
+  summary?: string;
+}
+
+// Work product (starred item)
+export interface WorkProduct {
+  id: string;
+  project: string;
+  content_type: string;
+  content_type_name: string;
+  object_id: string;
+  content_preview?: WorkProductPreview;
+  source_iteration?: string;
+  source_iteration_sequence?: number;
+  category: WorkProductCategory;
+  starred: boolean;
+  notes: string;
+  created_at: string;
+}
+
+// Annotation (user note)
+export interface Annotation {
+  id: string;
+  project: string;
+  content_type: string;
+  content_type_name: string;
+  object_id: string;
+  text: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Full project details
+export interface Project extends ProjectListItem {
+  description: string;
+  iterations: IterationListItem[];
+  work_products_count: number;
+  annotations_count: number;
+}
+
+// Project creation data
+export interface ProjectCreateData {
+  name: string;
+  client_name: string;
+  description?: string;
+  context_mode?: ContextMode;
+}
+
+// Iteration creation data
+export interface IterationCreateData {
+  name?: string;
+  sales_history?: string;
+  prompt_override?: string;
+}
+
+// Timeline view data
+export interface TimelineData {
+  iterations: IterationListItem[];
+  work_products_by_iteration: Record<number, WorkProduct[]>;
+}
+
+// Iteration comparison data
+export interface IterationComparison {
+  iteration_a: IterationComparisonData;
+  iteration_b: IterationComparisonData;
+  differences: {
+    pain_points: ListDiff;
+    opportunities: ListDiff;
+    talking_points: ListDiff;
+  };
+}
+
+export interface IterationComparisonData {
+  id: string;
+  sequence: number;
+  name: string;
+  status: IterationStatus;
+  created_at: string;
+  research_job?: {
+    id: string;
+    client_name: string;
+    status: string;
+    vertical?: string;
+  };
+  report?: {
+    company_overview: string;
+    pain_points: string[];
+    opportunities: string[];
+    digital_maturity: string;
+    ai_adoption_stage: string;
+    talking_points: string[];
+    decision_makers: DecisionMaker[];
+  };
+  gap_analysis?: {
+    technology_gaps: string[];
+    capability_gaps: string[];
+    process_gaps: string[];
+    recommendations: string[];
+    priority_areas: string[];
+  };
+  use_cases_count?: number;
+  personas_count?: number;
+  competitor_case_studies_count?: number;
+}
+
+export interface ListDiff {
+  added: string[];
+  removed: string[];
+  unchanged: string[];
+}

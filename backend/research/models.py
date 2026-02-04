@@ -31,6 +31,15 @@ class ResearchJob(models.Model):
         null=True,
     )
 
+    # Link to project iteration (nullable for backward compatibility)
+    iteration = models.OneToOneField(
+        'projects.Iteration',
+        on_delete=models.CASCADE,
+        related_name='research_job',
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         ordering = ['-created_at']
 

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'memory',
     'ideation',
     'assets',
+    'projects',
 ]
 
 MIDDLEWARE = [

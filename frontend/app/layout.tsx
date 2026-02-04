@@ -18,6 +18,8 @@ export const metadata: Metadata = {
   description: "AI-powered prospect research tool",
 };
 
+import Navigation from "@/components/Navigation";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -28,14 +30,8 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
-        <header className="bg-white border-b border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <h1 className="text-xl font-bold text-gray-900">
-              Deep Prospecting Engine
-            </h1>
-          </div>
-        </header>
-        <main className="max-w-4xl mx-auto px-4 py-8">
+        <Navigation />
+        <main className="max-w-6xl mx-auto px-4 py-8">
           {children}
         </main>
       </body>
