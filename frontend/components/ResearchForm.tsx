@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { api } from '@/lib/api';
 import { ResearchFormData, ResearchJob } from '@/types';
@@ -8,6 +9,7 @@ import PromptEditor from './PromptEditor';
 import ResearchResults from './ResearchResults';
 
 export default function ResearchForm() {
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentJob, setCurrentJob] = useState<ResearchJob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,12 +34,9 @@ export default function ResearchForm() {
         ...data,
         prompt,
       });
-      setCurrentJob(job);
 
-      // Poll for results
-      await api.pollResearch(job.id, (updatedJob) => {
-        setCurrentJob(updatedJob);
-      });
+      // Redirect to the results page immediately
+      router.push(`/research/${job.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

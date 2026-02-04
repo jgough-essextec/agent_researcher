@@ -44,6 +44,10 @@ class ApiClient {
   }
 
   // Research endpoints
+  async listResearch(): Promise<ResearchJob[]> {
+    return this.request<ResearchJob[]>('/api/research/jobs/');
+  }
+
   async createResearch(data: ResearchFormData): Promise<ResearchJob> {
     return this.request<ResearchJob>('/api/research/', {
       method: 'POST',

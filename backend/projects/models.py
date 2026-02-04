@@ -37,8 +37,7 @@ class Project(models.Model):
         """Return the most recent iteration."""
         return self.iterations.order_by('-sequence').first()
 
-    @property
-    def iteration_count(self):
+    def get_iteration_count(self):
         """Return the number of iterations."""
         return self.iterations.count()
 

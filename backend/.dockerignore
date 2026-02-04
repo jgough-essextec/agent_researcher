@@ -1,0 +1,9 @@
+db.sqlite3
+__pycache__
+*.pyc
+.env
+node_modules
+.git
+.gitignore
+chroma_data
+*.sqlite3

@@ -15,6 +15,7 @@ export default function Navigation() {
 
   const navItems = [
     { path: '/', label: 'Quick Research' },
+    { path: '/research', label: 'Research History' },
     { path: '/projects', label: 'Projects' },
   ];
 

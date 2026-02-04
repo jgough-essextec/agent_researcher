@@ -38,7 +38,8 @@ def run_research_async(job_id: str):
         result = research_workflow.invoke(initial_state)
 
         # Update job with results
-        job.status = result.get('status', 'failed')
+        job.refresh_from_db()
+        job.status = 'completed'
         job.result = result.get('result', '')
         job.error = result.get('error', '')
         if result.get('vertical'):
@@ -53,6 +54,13 @@ def run_research_async(job_id: str):
             job.save()
         except Exception:
             pass
+
+
+class ResearchJobListView(generics.ListAPIView):
+    """View for listing all research jobs."""
+
+    queryset = ResearchJob.objects.all().order_by('-created_at')
+    serializer_class = ResearchJobDetailSerializer
 
 
 class ResearchJobCreateView(generics.CreateAPIView):

@@ -33,13 +33,11 @@ class VectorStore:
         """Lazy initialization of ChromaDB client."""
         if self._client is None:
             import chromadb
-            from chromadb.config import Settings
 
-            self._client = chromadb.Client(Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=self.persist_directory,
-                anonymized_telemetry=False,
-            ))
+            self._client = chromadb.PersistentClient(
+                path=self.persist_directory,
+                settings=chromadb.Settings(anonymized_telemetry=False),
+            )
         return self._client
 
     @property
