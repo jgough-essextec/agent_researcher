@@ -110,7 +110,7 @@ function OverviewTab({ job }: { job: ResearchJob }) {
       {/* Company Overview */}
       {report?.company_overview && (
         <Section title="Company Overview">
-          <p className="text-gray-700">{report.company_overview}</p>
+          <p className="text-gray-900">{report.company_overview}</p>
         </Section>
       )}
 
@@ -121,9 +121,9 @@ function OverviewTab({ job }: { job: ResearchJob }) {
             {report.decision_makers.map((dm, i) => (
               <div key={i} className="p-3 bg-gray-50 rounded-lg">
                 <div className="font-medium text-gray-900">{dm.name}</div>
-                <div className="text-sm text-gray-600">{dm.title}</div>
+                <div className="text-sm text-gray-800">{dm.title}</div>
                 {dm.background && (
-                  <div className="text-sm text-gray-500 mt-1">{dm.background}</div>
+                  <div className="text-sm text-gray-700 mt-1">{dm.background}</div>
                 )}
               </div>
             ))}
@@ -138,8 +138,8 @@ function OverviewTab({ job }: { job: ResearchJob }) {
             <ul className="space-y-2">
               {report.pain_points.map((point, i) => (
                 <li key={i} className="flex items-start">
-                  <span className="text-red-500 mr-2">-</span>
-                  <span className="text-gray-700">{point}</span>
+                  <span className="text-red-600 mr-2">-</span>
+                  <span className="text-gray-900">{point}</span>
                 </li>
               ))}
             </ul>
@@ -150,8 +150,8 @@ function OverviewTab({ job }: { job: ResearchJob }) {
             <ul className="space-y-2">
               {report.opportunities.map((opp, i) => (
                 <li key={i} className="flex items-start">
-                  <span className="text-green-500 mr-2">+</span>
-                  <span className="text-gray-700">{opp}</span>
+                  <span className="text-green-600 mr-2">+</span>
+                  <span className="text-gray-900">{opp}</span>
                 </li>
               ))}
             </ul>
@@ -164,7 +164,7 @@ function OverviewTab({ job }: { job: ResearchJob }) {
         <Section title="Recommended Talking Points">
           <ul className="space-y-2">
             {report.talking_points.map((point, i) => (
-              <li key={i} className="p-3 bg-blue-50 rounded-lg text-gray-700">
+              <li key={i} className="p-3 bg-blue-50 rounded-lg text-gray-900">
                 {point}
               </li>
             ))}
@@ -212,7 +212,7 @@ function ReportTab({ report }: { report: ResearchReport }) {
           )}
         </div>
         {report.ai_footprint && (
-          <p className="text-gray-700">{report.ai_footprint}</p>
+          <p className="text-gray-900">{report.ai_footprint}</p>
         )}
       </Section>
 
@@ -223,8 +223,8 @@ function ReportTab({ report }: { report: ResearchReport }) {
             {report.recent_news.map((news, i) => (
               <div key={i} className="p-3 bg-gray-50 rounded-lg">
                 <div className="font-medium text-gray-900">{news.title}</div>
-                <div className="text-sm text-gray-600 mt-1">{news.summary}</div>
-                <div className="text-xs text-gray-500 mt-2">
+                <div className="text-sm text-gray-800 mt-1">{news.summary}</div>
+                <div className="text-xs text-gray-600 mt-2">
                   {news.date && <span>{news.date}</span>}
                   {news.source && <span> - {news.source}</span>}
                 </div>
@@ -240,8 +240,8 @@ function ReportTab({ report }: { report: ResearchReport }) {
           <ul className="space-y-2">
             {report.strategic_goals.map((goal, i) => (
               <li key={i} className="flex items-start">
-                <span className="text-blue-500 mr-2">{i + 1}.</span>
-                <span className="text-gray-700">{goal}</span>
+                <span className="text-blue-600 mr-2">{i + 1}.</span>
+                <span className="text-gray-900">{goal}</span>
               </li>
             ))}
           </ul>
@@ -253,7 +253,7 @@ function ReportTab({ report }: { report: ResearchReport }) {
         <Section title="Key Initiatives">
           <ul className="space-y-2">
             {report.key_initiatives.map((init, i) => (
-              <li key={i} className="p-3 bg-gray-50 rounded-lg text-gray-700">
+              <li key={i} className="p-3 bg-gray-50 rounded-lg text-gray-900">
                 {init}
               </li>
             ))}
@@ -267,7 +267,7 @@ function ReportTab({ report }: { report: ResearchReport }) {
 function CompetitorsTab({ caseStudies }: { caseStudies: CompetitorCaseStudy[] }) {
   return (
     <div className="space-y-4">
-      <p className="text-gray-600 mb-4">
+      <p className="text-gray-800 mb-4">
         Found {caseStudies.length} relevant competitor case studies
       </p>
       {caseStudies.map((cs, i) => (
@@ -275,21 +275,21 @@ function CompetitorsTab({ caseStudies }: { caseStudies: CompetitorCaseStudy[] })
           <div className="flex justify-between items-start mb-2">
             <div>
               <h4 className="font-medium text-gray-900">{cs.competitor_name}</h4>
-              <p className="text-sm text-gray-500 capitalize">{cs.vertical?.replace('_', ' ')}</p>
+              <p className="text-sm text-gray-700 capitalize">{cs.vertical?.replace('_', ' ')}</p>
             </div>
             <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
               {Math.round(cs.relevance_score * 100)}% match
             </span>
           </div>
           <h5 className="font-medium text-gray-800 mt-3">{cs.case_study_title}</h5>
-          <p className="text-gray-600 text-sm mt-1">{cs.summary}</p>
+          <p className="text-gray-900 text-sm mt-1">{cs.summary}</p>
 
           {cs.technologies_used && cs.technologies_used.length > 0 && (
             <div className="mt-3">
-              <span className="text-xs font-medium text-gray-500">Technologies:</span>
+              <span className="text-xs font-medium text-gray-700">Technologies:</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {cs.technologies_used.map((tech, j) => (
-                  <span key={j} className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded">
+                  <span key={j} className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded">
                     {tech}
                   </span>
                 ))}
@@ -299,11 +299,11 @@ function CompetitorsTab({ caseStudies }: { caseStudies: CompetitorCaseStudy[] })
 
           {cs.outcomes && cs.outcomes.length > 0 && (
             <div className="mt-3">
-              <span className="text-xs font-medium text-gray-500">Outcomes:</span>
+              <span className="text-xs font-medium text-gray-700">Outcomes:</span>
               <ul className="mt-1 space-y-1">
                 {cs.outcomes.map((outcome, j) => (
-                  <li key={j} className="text-sm text-gray-600 flex items-start">
-                    <span className="text-green-500 mr-1">+</span>
+                  <li key={j} className="text-sm text-gray-900 flex items-start">
+                    <span className="text-green-600 mr-1">+</span>
                     {outcome}
                   </li>
                 ))}
@@ -321,7 +321,7 @@ function GapsTab({ gaps }: { gaps: GapAnalysis }) {
     <div className="space-y-6">
       {/* Confidence Score */}
       <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-        <span className="text-gray-600">Analysis Confidence</span>
+        <span className="text-gray-800">Analysis Confidence</span>
         <span className={`font-medium ${
           gaps.confidence_score >= 0.7 ? 'text-green-600' :
           gaps.confidence_score >= 0.4 ? 'text-yellow-600' :
@@ -336,7 +336,7 @@ function GapsTab({ gaps }: { gaps: GapAnalysis }) {
         <Section title="Priority Areas">
           <div className="space-y-2">
             {gaps.priority_areas.map((area, i) => (
-              <div key={i} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-gray-700">
+              <div key={i} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-gray-900">
                 <span className="font-medium">#{i + 1}</span> {area}
               </div>
             ))}
@@ -362,7 +362,7 @@ function GapsTab({ gaps }: { gaps: GapAnalysis }) {
         <Section title="Recommendations">
           <ul className="space-y-2">
             {gaps.recommendations.map((rec, i) => (
-              <li key={i} className="p-3 bg-green-50 rounded-lg text-gray-700">
+              <li key={i} className="p-3 bg-green-50 rounded-lg text-gray-900">
                 {rec}
               </li>
             ))}
@@ -373,7 +373,7 @@ function GapsTab({ gaps }: { gaps: GapAnalysis }) {
       {/* Analysis Notes */}
       {gaps.analysis_notes && (
         <Section title="Analysis Notes">
-          <p className="text-gray-600 text-sm">{gaps.analysis_notes}</p>
+          <p className="text-gray-800 text-sm">{gaps.analysis_notes}</p>
         </Section>
       )}
     </div>
@@ -410,7 +410,7 @@ function StatCard({ label, value, className = '' }: { label: string; value: stri
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex justify-between py-2 border-b border-gray-100">
-      <span className="text-gray-500">{label}</span>
+      <span className="text-gray-700">{label}</span>
       <span className="text-gray-900">{value}</span>
     </div>
   );
