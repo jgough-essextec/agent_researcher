@@ -1,3 +1,4 @@
+import logging
 import threading
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -12,15 +13,16 @@ from .serializers import (
 )
 from .graph import research_workflow
 
+logger = logging.getLogger(__name__)
 
-def run_research_async(job_id: str):
-    """Run research workflow asynchronously."""
+
+def run_research_sync(job_id: str):
+    """Run research workflow synchronously. Called from a dedicated endpoint."""
+    job = ResearchJob.objects.get(id=job_id)
+    job.status = 'running'
+    job.save()
+
     try:
-        job = ResearchJob.objects.get(id=job_id)
-        job.status = 'running'
-        job.save()
-
-        # Run the LangGraph workflow with job_id for persistence
         initial_state = {
             'client_name': job.client_name,
             'sales_history': job.sales_history,
@@ -37,7 +39,6 @@ def run_research_async(job_id: str):
 
         result = research_workflow.invoke(initial_state)
 
-        # Update job with results
         job.refresh_from_db()
         job.status = 'completed'
         job.result = result.get('result', '')
@@ -45,15 +46,20 @@ def run_research_async(job_id: str):
         if result.get('vertical'):
             job.vertical = result['vertical']
         job.save()
+        logger.info(f"Research job {job_id} completed successfully")
 
     except Exception as e:
-        try:
-            job = ResearchJob.objects.get(id=job_id)
-            job.status = 'failed'
-            job.error = str(e)
-            job.save()
-        except Exception:
-            pass
+        logger.exception(f"Research job {job_id} failed")
+        job.refresh_from_db()
+        job.status = 'failed'
+        job.error = str(e)
+        job.save()
+
+
+# Keep backward compat for iteration starts (projects/views.py imports this)
+def run_research_async(job_id: str):
+    """Run research in a thread (legacy). Prefer run_research_sync."""
+    run_research_sync(job_id)
 
 
 class ResearchJobListView(generics.ListAPIView):
@@ -73,13 +79,41 @@ class ResearchJobCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         job = serializer.save()
 
-        # Start research in background thread
-        thread = threading.Thread(target=run_research_async, args=(str(job.id),))
-        thread.start()
-
-        # Return job details
+        # Return job immediately with pending status
         output_serializer = ResearchJobDetailSerializer(job)
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ResearchJobExecuteView(APIView):
+    """Execute a pending research job synchronously.
+
+    The frontend creates a job (POST /api/research/) then calls this
+    endpoint (POST /api/research/<id>/execute/) in the background.
+    This runs synchronously within the Cloud Run request timeout (300s),
+    avoiding thread-based execution that gets killed on OOM or scale-down.
+    """
+
+    def post(self, request, pk):
+        try:
+            job = ResearchJob.objects.get(pk=pk)
+        except ResearchJob.DoesNotExist:
+            return Response(
+                {'error': 'Research job not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if job.status not in ('pending', 'failed'):
+            return Response(
+                {'error': f'Job is already {job.status}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Run synchronously — Cloud Run timeout is 300s
+        run_research_sync(str(job.id))
+
+        job.refresh_from_db()
+        serializer = ResearchJobDetailSerializer(job)
+        return Response(serializer.data)
 
 
 class ResearchJobDetailView(generics.RetrieveAPIView):

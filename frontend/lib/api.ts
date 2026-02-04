@@ -49,9 +49,21 @@ class ApiClient {
   }
 
   async createResearch(data: ResearchFormData): Promise<ResearchJob> {
-    return this.request<ResearchJob>('/api/research/', {
+    const job = await this.request<ResearchJob>('/api/research/', {
       method: 'POST',
       body: JSON.stringify(data),
+    });
+
+    // Fire off the execute call (runs synchronously on backend, ~1-5 min)
+    // Don't await — the frontend will poll for status
+    this.executeResearch(job.id).catch(console.error);
+
+    return job;
+  }
+
+  async executeResearch(id: string): Promise<ResearchJob> {
+    return this.request<ResearchJob>(`/api/research/${id}/execute/`, {
+      method: 'POST',
     });
   }
 

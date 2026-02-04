@@ -1,5 +1,4 @@
 """Views for the projects app."""
-import threading
 from rest_framework import generics, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -161,14 +160,19 @@ class IterationStartView(APIView):
         iteration.status = 'running'
         iteration.save()
 
-        # Start research in background
-        thread = threading.Thread(target=run_research_async, args=(str(job.id),))
-        thread.start()
+        # Run research synchronously within the request
+        # Cloud Run timeout is 300s, research takes 1-5 min
+        run_research_async(str(job.id))
+
+        # Update iteration status based on job result
+        job.refresh_from_db()
+        iteration.status = 'completed' if job.status == 'completed' else 'failed'
+        iteration.save()
 
         return Response({
             'iteration_id': str(iteration.id),
             'research_job_id': str(job.id),
-            'status': 'running',
+            'status': job.status,
         }, status=status.HTTP_201_CREATED)
 
 
