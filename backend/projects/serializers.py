@@ -125,7 +125,7 @@ class IterationCreateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'project', 'name', 'sales_history', 'prompt_override'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'project']
 
 
 class ProjectListSerializer(serializers.ModelSerializer):
