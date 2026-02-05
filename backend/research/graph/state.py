@@ -12,7 +12,18 @@ class ResearchState(TypedDict):
     job_id: str  # UUID of the ResearchJob
 
     # Workflow state
-    status: Literal['pending', 'researching', 'classifying', 'competitor_search', 'gap_analysis', 'completed', 'failed']
+    status: Literal[
+        'pending',
+        'researching',
+        'internal_ops',
+        'merging',
+        'classifying',
+        'competitor_search',
+        'gap_analysis',
+        'correlating',
+        'completed',
+        'failed'
+    ]
 
     # Output fields
     result: str
@@ -29,3 +40,9 @@ class ResearchState(TypedDict):
 
     # Gap analysis (AGE-13)
     gap_analysis: Optional[dict]
+
+    # Internal Operations Intelligence (AGE-20)
+    internal_ops: Optional[dict]
+
+    # Gap Correlations (AGE-20)
+    gap_correlations: Optional[list]

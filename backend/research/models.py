@@ -171,3 +171,59 @@ class GapAnalysis(models.Model):
 
     def __str__(self):
         return f"Gap Analysis: {self.research_job.client_name}"
+
+
+class InternalOpsIntel(models.Model):
+    """Internal Operations Intelligence gathered from public sources (AGE-20)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    research_job = models.OneToOneField(
+        ResearchJob,
+        on_delete=models.CASCADE,
+        related_name='internal_ops',
+    )
+
+    # Employee Sentiment (from Glassdoor-like sources)
+    # Structure: {overall_rating, work_life_balance, compensation, culture, management,
+    #             recommend_pct, positive_themes, negative_themes, trend}
+    employee_sentiment = models.JSONField(default=dict, blank=True)
+
+    # LinkedIn Presence
+    # Structure: {follower_count, engagement_level, recent_posts, employee_trend, notable_changes}
+    linkedin_presence = models.JSONField(default=dict, blank=True)
+
+    # Social Media Mentions
+    # Structure: [{platform, summary, sentiment, topic}]
+    social_media_mentions = models.JSONField(default=list, blank=True)
+
+    # Job Postings Analysis
+    # Structure: {total_openings, departments_hiring, skills_sought, seniority_dist,
+    #             urgency_signals, insights}
+    job_postings = models.JSONField(default=dict, blank=True)
+
+    # News Sentiment
+    # Structure: {overall_sentiment, coverage_volume, topics, headlines}
+    news_sentiment = models.JSONField(default=dict, blank=True)
+
+    # Synthesized Analysis
+    key_insights = models.JSONField(default=list, blank=True)
+
+    # Gap Correlations - cross-referenced with Gap Analysis
+    # Structure: [{gap_type, description, evidence, evidence_type, confidence, sales_implication}]
+    gap_correlations = models.JSONField(default=list, blank=True)
+
+    # Metadata
+    confidence_score = models.FloatField(default=0.0)
+    data_freshness = models.CharField(max_length=50, blank=True)  # e.g., "last_30_days", "last_90_days"
+    analysis_notes = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Internal Operations Intelligence'
+        verbose_name_plural = 'Internal Operations Intelligence'
+
+    def __str__(self):
+        return f"Internal Ops Intel: {self.research_job.client_name}"

@@ -198,13 +198,104 @@ def analyze_gaps(state: ResearchState) -> ResearchState:
         }
 
 
+def research_internal_ops(state: ResearchState) -> ResearchState:
+    """Research internal operations intelligence (AGE-20).
+
+    This runs in parallel with the main research pipeline.
+    Gathers employee sentiment, LinkedIn presence, job postings, etc.
+    """
+    if state.get('status') == 'failed':
+        return state
+
+    try:
+        from ..services.gemini import GeminiClient
+        from ..services.internal_ops import InternalOpsService
+
+        gemini_client = GeminiClient()
+        internal_ops_service = InternalOpsService(gemini_client)
+
+        report = state.get('research_report', {})
+        ops_data = internal_ops_service.research_internal_ops(
+            client_name=state.get('client_name', ''),
+            vertical=state.get('vertical', ''),
+            website=report.get('website', ''),
+            company_overview=report.get('company_overview', ''),
+        )
+
+        # Convert to dict for state storage
+        ops_dict = ops_data.to_dict()
+
+        return {
+            **state,
+            'internal_ops': ops_dict,
+        }
+
+    except Exception as e:
+        logger.exception("Error during internal ops research")
+        # Non-fatal, continue without internal ops data
+        return {
+            **state,
+            'internal_ops': None,
+        }
+
+
+def correlate_internal_ops(state: ResearchState) -> ResearchState:
+    """Correlate gap analysis findings with internal ops evidence (AGE-20)."""
+    if state.get('status') == 'failed':
+        return state
+
+    gap_analysis = state.get('gap_analysis')
+    internal_ops = state.get('internal_ops')
+
+    # Skip correlation if either is missing
+    if not gap_analysis or not internal_ops:
+        logger.info("Skipping gap correlation - missing gap_analysis or internal_ops")
+        return {
+            **state,
+            'status': 'completed',
+            'gap_correlations': [],
+        }
+
+    try:
+        from ..services.gemini import GeminiClient
+        from ..services.gap_correlation import GapCorrelationService
+
+        gemini_client = GeminiClient()
+        correlation_service = GapCorrelationService(gemini_client)
+
+        correlations = correlation_service.correlate_gaps(
+            client_name=state.get('client_name', ''),
+            vertical=state.get('vertical', 'other'),
+            gap_analysis=gap_analysis,
+            internal_ops=internal_ops,
+        )
+
+        # Convert to list of dicts
+        correlations_list = correlation_service.correlations_to_dict(correlations)
+
+        return {
+            **state,
+            'status': 'completed',
+            'gap_correlations': correlations_list,
+        }
+
+    except Exception as e:
+        logger.exception("Error during gap correlation")
+        # Non-fatal, continue without correlations
+        return {
+            **state,
+            'status': 'completed',
+            'gap_correlations': [],
+        }
+
+
 def finalize_result(state: ResearchState) -> ResearchState:
     """Finalize the research result and persist to database."""
     if state.get('status') == 'failed':
         return state
 
     try:
-        from ..models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis
+        from ..models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
         job_id = state.get('job_id')
         if not job_id:
@@ -271,6 +362,25 @@ def finalize_result(state: ResearchState) -> ResearchState:
                     'priority_areas': gap_data.get('priority_areas', []),
                     'confidence_score': gap_data.get('confidence_score', 0.0),
                     'analysis_notes': gap_data.get('analysis_notes', ''),
+                }
+            )
+
+        # Create InternalOpsIntel record (AGE-20)
+        internal_ops_data = state.get('internal_ops')
+        if internal_ops_data:
+            InternalOpsIntel.objects.update_or_create(
+                research_job=job,
+                defaults={
+                    'employee_sentiment': internal_ops_data.get('employee_sentiment', {}),
+                    'linkedin_presence': internal_ops_data.get('linkedin_presence', {}),
+                    'social_media_mentions': internal_ops_data.get('social_media_mentions', []),
+                    'job_postings': internal_ops_data.get('job_postings', {}),
+                    'news_sentiment': internal_ops_data.get('news_sentiment', {}),
+                    'key_insights': internal_ops_data.get('key_insights', []),
+                    'gap_correlations': state.get('gap_correlations', []),
+                    'confidence_score': internal_ops_data.get('confidence_score', 0.0),
+                    'data_freshness': internal_ops_data.get('data_freshness', ''),
+                    'analysis_notes': internal_ops_data.get('analysis_notes', ''),
                 }
             )
 

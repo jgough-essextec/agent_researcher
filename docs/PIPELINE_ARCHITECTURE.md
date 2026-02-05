@@ -50,12 +50,30 @@
 │  │ Fallback: Keyword-based classification if LLM fails                        │ │
 │  └────────────────────────────────────────────────────────────────────────────┘ │
 │                                                                                  │
-│  OUTPUT → vertical field on ResearchJob (used by steps 4 & 5)                   │
+│  OUTPUT → vertical field on ResearchJob (used by subsequent steps)              │
 └─────────────────────────────────────────────────────────────────────────────────┘
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│              4. SEARCH COMPETITORS  🤖 Gemini AI                                │
+│             4. INTERNAL OPS INTEL  🤖 Gemini AI (AGE-20)                        │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │ Input: client_name + vertical + website + company_overview                 │ │
+│  │                                                                            │ │
+│  │ AI Task: Research internal operations intelligence:                        │ │
+│  │   • Employee sentiment (ratings, themes, trends from Glassdoor-like)       │ │
+│  │   • LinkedIn presence (followers, engagement, recent posts)                │ │
+│  │   • Social media mentions (Reddit, Twitter, Facebook discussions)          │ │
+│  │   • Job postings analysis (openings, departments, skills, urgency)         │ │
+│  │   • News sentiment (coverage, topics, headlines)                           │ │
+│  │   • Key synthesized insights for sales                                     │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                  │
+│  OUTPUT → InternalOpsIntel model (Inside Intel screen)                          │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│              5. SEARCH COMPETITORS  🤖 Gemini AI                                │
 │  ┌────────────────────────────────────────────────────────────────────────────┐ │
 │  │ Input: client_name + vertical + company_overview                           │ │
 │  │                                                                            │ │
@@ -76,7 +94,7 @@
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                5. GAP ANALYSIS  🤖 Gemini AI                                    │
+│                6. GAP ANALYSIS  🤖 Gemini AI                                    │
 │  ┌────────────────────────────────────────────────────────────────────────────┐ │
 │  │ Input: client_name + vertical + company_overview + sales_history           │ │
 │  │                                                                            │ │
@@ -95,7 +113,23 @@
                                       │
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                        6. FINALIZE & PERSIST                                     │
+│             7. GAP CORRELATION  🤖 Gemini AI (AGE-20)                           │
+│  ┌────────────────────────────────────────────────────────────────────────────┐ │
+│  │ Input: client_name + vertical + gap_analysis + internal_ops                │ │
+│  │                                                                            │ │
+│  │ AI Task: Cross-reference gaps with internal ops evidence:                  │ │
+│  │   • For each gap, find supporting or contradicting evidence                │ │
+│  │   • Evidence types: supporting, contradicting, neutral                     │ │
+│  │   • Confidence scores for correlations                                     │ │
+│  │   • Sales implications for each correlation                                │ │
+│  └────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                  │
+│  OUTPUT → gap_correlations field on InternalOpsIntel (Inside Intel screen)      │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                        8. FINALIZE & PERSIST                                     │
 │                    Save all data to PostgreSQL                                   │
 │                    Attempt memory capture (non-fatal)                            │
 │                          (No AI - database only)                                 │
@@ -129,7 +163,7 @@
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
 │  │                    TAB 2: COMPETITORS                                   │ │
 │  │                                                                         │ │
-│  │  Source: CompetitorCaseStudy models (from Step 4: Search Competitors)   │ │
+│  │  Source: CompetitorCaseStudy models (from Step 5: Search Competitors)   │ │
 │  │                                                                         │ │
 │  │  For each competitor (3-5):                                             │ │
 │  │    • Competitor Name + Vertical                                         │ │
@@ -144,7 +178,7 @@
 │  ┌─────────────────────────────────────────────────────────────────────────┐ │
 │  │                    TAB 3: GAP ANALYSIS                                  │ │
 │  │                                                                         │ │
-│  │  Source: GapAnalysis model (from Step 5: Gap Analysis)                  │ │
+│  │  Source: GapAnalysis model (from Step 6: Gap Analysis)                  │ │
 │  │                                                                         │ │
 │  │  • Technology Gaps (what tech they're missing)                          │ │
 │  │  • Capability Gaps (skills they lack)                                   │ │
@@ -153,6 +187,47 @@
 │  │  • Priority Areas (where to focus)                                      │ │
 │  │  • Confidence Score                                                     │ │
 │  │  • Analysis Notes                                                       │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                    TAB 4: INSIDE INTEL (AGE-20)                         │ │
+│  │                                                                         │ │
+│  │  Source: InternalOpsIntel model (from Steps 4 & 7)                      │ │
+│  │                                                                         │ │
+│  │  Section 1: Employee Sentiment Overview                                 │ │
+│  │    • Overall rating (1-5 stars)                                         │ │
+│  │    • Category ratings (Work-Life, Compensation, Culture, Management)    │ │
+│  │    • "Recommend to friend" percentage                                   │ │
+│  │    • Sentiment trend indicator (improving/declining/stable)             │ │
+│  │    • Positive/Negative theme tags                                       │ │
+│  │                                                                         │ │
+│  │  Section 2: Talent & Hiring Intelligence                                │ │
+│  │    • Total open positions                                               │ │
+│  │    • Departments hiring (bar chart)                                     │ │
+│  │    • Key skills sought (tag cloud)                                      │ │
+│  │    • Seniority distribution                                             │ │
+│  │    • Urgency signals                                                    │ │
+│  │    • Hiring insights summary                                            │ │
+│  │                                                                         │ │
+│  │  Section 3: Digital & Social Presence                                   │ │
+│  │    • LinkedIn follower count & engagement                               │ │
+│  │    • Recent company posts                                               │ │
+│  │    • Employee count trends                                              │ │
+│  │    • Notable changes                                                    │ │
+│  │                                                                         │ │
+│  │  Section 4: Public Sentiment Analysis                                   │ │
+│  │    • Social media mentions (Reddit, Twitter, Facebook)                  │ │
+│  │    • Key discussion topics                                              │ │
+│  │    • News sentiment & headlines                                         │ │
+│  │                                                                         │ │
+│  │  Section 5: Gap Correlation Insights                                    │ │
+│  │    • Each gap paired with supporting evidence                           │ │
+│  │    • Evidence type (supporting/contradicting)                           │ │
+│  │    • Confidence score per correlation                                   │ │
+│  │    • Sales implications                                                 │ │
+│  │                                                                         │ │
+│  │  Section 6: Key Insights & Recommendations                              │ │
+│  │    • Synthesized findings for sales teams                               │ │
 │  └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -182,12 +257,22 @@
                          │                      │
                          ▼                      │
                   ┌──────────────┐              │
+              🤖  │ internal_ops │──────────────┤  (AGE-20)
+                  └──────┬───────┘              │
+                         │                      │
+                         ▼                      │
+                  ┌──────────────┐              │
               🤖  │  competitors │──────────────┤
                   └──────┬───────┘              │
                          │                      │
                          ▼                      │
                   ┌──────────────┐              │
               🤖  │ gap_analysis │──────────────┤
+                  └──────┬───────┘              │
+                         │                      │
+                         ▼                      │
+                  ┌──────────────┐              │
+              🤖  │  correlate   │──────────────┤  (AGE-20)
                   └──────┬───────┘              │
                          │                      │
                          ▼                      │
@@ -208,13 +293,17 @@
 |------|---------|-------|-------|--------|
 | 2. Deep Research | GeminiClient.conduct_deep_research() | gemini-2.0-flash | client_name, sales_history | ResearchReportData (JSON) |
 | 3. Classify | GeminiClient.classify_vertical() | gemini-2.0-flash | client_name, company_overview | vertical string |
-| 4. Competitors | CompetitorSearchService.search_competitor_case_studies() | gemini-2.0-flash | client_name, vertical, company_overview | List[CompetitorCaseStudyData] |
-| 5. Gap Analysis | GapAnalysisService.analyze_gaps() | gemini-2.0-flash | client_name, vertical, company_overview, sales_history | GapAnalysisData |
+| 4. Internal Ops | InternalOpsService.research_internal_ops() | gemini-2.0-flash | client_name, vertical, website, company_overview | InternalOpsData (JSON) |
+| 5. Competitors | CompetitorSearchService.search_competitor_case_studies() | gemini-2.0-flash | client_name, vertical, company_overview | List[CompetitorCaseStudyData] |
+| 6. Gap Analysis | GapAnalysisService.analyze_gaps() | gemini-2.0-flash | client_name, vertical, company_overview, sales_history | GapAnalysisData |
+| 7. Gap Correlation | GapCorrelationService.correlate_gaps() | gemini-2.0-flash | client_name, vertical, gap_analysis, internal_ops | List[GapCorrelation] |
 
 ## Key Design Decisions
 
-1. **Sequential Pipeline**: Each step depends on previous outputs (overview → classification → competitors → gaps)
-2. **Fault Tolerance**: Steps 3-5 are non-fatal; if they fail, the pipeline continues with partial results
+1. **Sequential Pipeline**: Each step depends on previous outputs (overview → classification → internal ops → competitors → gaps → correlations)
+2. **Fault Tolerance**: Steps 3-7 are non-fatal; if they fail, the pipeline continues with partial results
 3. **Structured Prompts**: All AI calls use detailed JSON schema prompts for consistent output parsing
 4. **Single Model**: All calls use `gemini-2.0-flash` for consistency and cost efficiency
 5. **Synchronous Execution**: Research runs within HTTP request (Cloud Run 300s timeout) to avoid threading issues
+6. **Internal Ops Intelligence (AGE-20)**: Gathers employee sentiment, LinkedIn presence, job postings, and news sentiment to provide sales teams with organizational insight
+7. **Gap Correlation (AGE-20)**: Cross-references identified gaps with internal ops evidence to provide evidence-backed insights

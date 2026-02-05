@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis
+from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
 
 class ResearchJobCreateSerializer(serializers.ModelSerializer):
@@ -80,12 +80,36 @@ class GapAnalysisSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class InternalOpsIntelSerializer(serializers.ModelSerializer):
+    """Serializer for internal operations intelligence (AGE-20)."""
+
+    class Meta:
+        model = InternalOpsIntel
+        fields = [
+            'id',
+            'employee_sentiment',
+            'linkedin_presence',
+            'social_media_mentions',
+            'job_postings',
+            'news_sentiment',
+            'key_insights',
+            'gap_correlations',
+            'confidence_score',
+            'data_freshness',
+            'analysis_notes',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = fields
+
+
 class ResearchJobDetailSerializer(serializers.ModelSerializer):
     """Serializer for retrieving research job details."""
 
     report = ResearchReportSerializer(read_only=True)
     competitor_case_studies = CompetitorCaseStudySerializer(many=True, read_only=True)
     gap_analysis = GapAnalysisSerializer(read_only=True)
+    internal_ops = InternalOpsIntelSerializer(read_only=True)
 
     class Meta:
         model = ResearchJob
@@ -101,6 +125,7 @@ class ResearchJobDetailSerializer(serializers.ModelSerializer):
             'report',
             'competitor_case_studies',
             'gap_analysis',
+            'internal_ops',
             'created_at',
             'updated_at',
         ]
@@ -113,6 +138,7 @@ class ResearchJobDetailSerializer(serializers.ModelSerializer):
             'report',
             'competitor_case_studies',
             'gap_analysis',
+            'internal_ops',
             'created_at',
             'updated_at',
         ]

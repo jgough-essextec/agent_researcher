@@ -66,6 +66,89 @@ export interface GapAnalysis {
   updated_at: string;
 }
 
+// Internal Operations Intelligence types (AGE-20)
+
+export interface EmployeeSentiment {
+  overall_rating: number;
+  work_life_balance: number;
+  compensation: number;
+  culture: number;
+  management: number;
+  recommend_pct: number;
+  positive_themes: string[];
+  negative_themes: string[];
+  trend: 'improving' | 'declining' | 'stable';
+}
+
+export interface LinkedInPost {
+  title: string;
+  summary: string;
+  date: string;
+}
+
+export interface LinkedInPresence {
+  follower_count: number;
+  engagement_level: 'low' | 'medium' | 'high';
+  recent_posts: LinkedInPost[];
+  employee_trend: 'growing' | 'shrinking' | 'stable';
+  notable_changes: string[];
+}
+
+export interface SocialMediaMention {
+  platform: 'reddit' | 'twitter' | 'facebook' | string;
+  summary: string;
+  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
+  topic: string;
+}
+
+export interface JobPostings {
+  total_openings: number;
+  departments_hiring: Record<string, number>;
+  skills_sought: string[];
+  seniority_distribution: Record<string, number>;
+  urgency_signals: string[];
+  insights: string;
+}
+
+export interface NewsHeadline {
+  title: string;
+  source: string;
+  date: string;
+  sentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
+}
+
+export interface NewsSentiment {
+  overall_sentiment: 'positive' | 'negative' | 'neutral' | 'mixed';
+  coverage_volume: 'low' | 'medium' | 'high';
+  topics: string[];
+  headlines: NewsHeadline[];
+}
+
+export interface GapCorrelation {
+  gap_type: 'technology' | 'capability' | 'process';
+  description: string;
+  evidence: string;
+  evidence_type: 'supporting' | 'contradicting' | 'neutral';
+  confidence: number;
+  sales_implication: string;
+}
+
+export interface InternalOpsIntel {
+  id: string;
+  employee_sentiment: EmployeeSentiment;
+  linkedin_presence: LinkedInPresence;
+  social_media_mentions: SocialMediaMention[];
+  job_postings: JobPostings;
+  news_sentiment: NewsSentiment;
+  key_insights: string[];
+  gap_correlations: GapCorrelation[];
+  confidence_score: number;
+  data_freshness: string;
+  analysis_notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Main research job with nested data
 export interface ResearchJob {
   id: string;
@@ -79,6 +162,7 @@ export interface ResearchJob {
   report?: ResearchReport;
   competitor_case_studies?: CompetitorCaseStudy[];
   gap_analysis?: GapAnalysis;
+  internal_ops?: InternalOpsIntel;
   created_at: string;
   updated_at: string;
 }

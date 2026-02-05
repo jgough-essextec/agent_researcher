@@ -7,6 +7,8 @@ from .nodes import (
     classify_vertical,
     search_competitors,
     analyze_gaps,
+    research_internal_ops,
+    correlate_internal_ops,
     finalize_result,
 )
 
@@ -25,9 +27,14 @@ def build_research_workflow():
     1. validate - Validate input data and API key
     2. research - Conduct deep research with structured output (AGE-10)
     3. classify - Classify company into industry vertical (AGE-11)
-    4. competitors - Search for competitor AI case studies (AGE-12)
-    5. gap_analysis - Analyze technology and capability gaps (AGE-13)
-    6. finalize - Persist results to database
+    4. internal_ops - Research internal operations intelligence (AGE-20)
+    5. competitors - Search for competitor AI case studies (AGE-12)
+    6. gap_analysis - Analyze technology and capability gaps (AGE-13)
+    7. correlate - Cross-reference gaps with internal ops evidence (AGE-20)
+    8. finalize - Persist results to database
+
+    Note: internal_ops runs after classify to leverage vertical info,
+    and correlate runs after both gap_analysis and internal_ops complete.
     """
     # Create the graph
     workflow = StateGraph(ResearchState)
@@ -36,8 +43,10 @@ def build_research_workflow():
     workflow.add_node('validate', validate_input)
     workflow.add_node('research', conduct_research)
     workflow.add_node('classify', classify_vertical)
+    workflow.add_node('internal_ops', research_internal_ops)
     workflow.add_node('competitors', search_competitors)
     workflow.add_node('gap_analysis', analyze_gaps)
+    workflow.add_node('correlate', correlate_internal_ops)
     workflow.add_node('finalize', finalize_result)
 
     # Set entry point
@@ -66,6 +75,15 @@ def build_research_workflow():
         'classify',
         should_continue,
         {
+            'continue': 'internal_ops',
+            'end': END,
+        }
+    )
+
+    workflow.add_conditional_edges(
+        'internal_ops',
+        should_continue,
+        {
             'continue': 'competitors',
             'end': END,
         }
@@ -82,6 +100,15 @@ def build_research_workflow():
 
     workflow.add_conditional_edges(
         'gap_analysis',
+        should_continue,
+        {
+            'continue': 'correlate',
+            'end': END,
+        }
+    )
+
+    workflow.add_conditional_edges(
+        'correlate',
         should_continue,
         {
             'continue': 'finalize',
