@@ -11,11 +11,15 @@ class IterationInline(admin.TabularInline):
 
 @admin.register(Project)
 class ProjectAdmin(admin.ModelAdmin):
-    list_display = ('name', 'client_name', 'context_mode', 'iteration_count', 'updated_at')
+    list_display = ('name', 'client_name', 'context_mode', 'get_iteration_count', 'updated_at')
     list_filter = ('context_mode', 'created_at')
     search_fields = ('name', 'client_name', 'description')
     readonly_fields = ('id', 'created_at', 'updated_at')
     inlines = [IterationInline]
+
+    @admin.display(description='Iterations')
+    def get_iteration_count(self, obj):
+        return obj.iterations.count()
 
 
 @admin.register(Iteration)
