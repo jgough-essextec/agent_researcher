@@ -312,11 +312,19 @@ def finalize_result(state: ResearchState) -> ResearchState:
         # Create ResearchReport
         report_data = state.get('research_report', {})
         if report_data:
+            # Clean founded_year - must be int or None
+            founded_year = report_data.get('founded_year')
+            if founded_year is not None:
+                try:
+                    founded_year = int(founded_year)
+                except (ValueError, TypeError):
+                    founded_year = None
+
             ResearchReport.objects.update_or_create(
                 research_job=job,
                 defaults={
                     'company_overview': report_data.get('company_overview', ''),
-                    'founded_year': report_data.get('founded_year'),
+                    'founded_year': founded_year,
                     'headquarters': report_data.get('headquarters', ''),
                     'employee_count': report_data.get('employee_count', ''),
                     'annual_revenue': report_data.get('annual_revenue', ''),
@@ -337,15 +345,16 @@ def finalize_result(state: ResearchState) -> ResearchState:
         # Create CompetitorCaseStudy records
         case_studies = state.get('competitor_case_studies', [])
         for cs in case_studies:
+            # Truncate fields to fit database column limits
             CompetitorCaseStudy.objects.create(
                 research_job=job,
-                competitor_name=cs.get('competitor_name', ''),
-                vertical=cs.get('vertical', ''),
-                case_study_title=cs.get('case_study_title', ''),
+                competitor_name=cs.get('competitor_name', '')[:255],
+                vertical=cs.get('vertical', '')[:50],
+                case_study_title=cs.get('case_study_title', '')[:500],
                 summary=cs.get('summary', ''),
                 technologies_used=cs.get('technologies_used', []),
                 outcomes=cs.get('outcomes', []),
-                source_url=cs.get('source_url', ''),
+                source_url=cs.get('source_url', '')[:500],
                 relevance_score=cs.get('relevance_score', 0.0),
             )
 
