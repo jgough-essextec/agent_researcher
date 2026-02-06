@@ -71,6 +71,37 @@ class ApiClient {
     return this.request<ResearchJob>(`/api/research/${id}/`);
   }
 
+  async downloadResearchPdf(id: string): Promise<void> {
+    const url = `${this.baseUrl}/api/research/${id}/export/pdf/`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error || `Failed to download PDF: ${response.status}`);
+    }
+
+    // Get filename from Content-Disposition header or use default
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = 'research_report.pdf';
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (match) {
+        filename = match[1];
+      }
+    }
+
+    // Convert response to blob and trigger download
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(downloadUrl);
+  }
+
   async pollResearch(
     id: string,
     onUpdate: (job: ResearchJob) => void,

@@ -17,9 +17,9 @@ class ProjectAdmin(admin.ModelAdmin):
     readonly_fields = ('id', 'created_at', 'updated_at')
     inlines = [IterationInline]
 
-    @admin.display(description='Iterations')
     def get_iteration_count(self, obj):
         return obj.iterations.count()
+    get_iteration_count.short_description = 'Iterations'
 
 
 @admin.register(Iteration)

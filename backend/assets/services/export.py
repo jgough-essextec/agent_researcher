@@ -1,6 +1,8 @@
 """Export service for generating PDFs and HTML (AGE-24)."""
+import html
 import logging
 import os
+from datetime import datetime
 from typing import Optional
 from django.conf import settings
 
@@ -325,3 +327,803 @@ class ExportService:
         except Exception as e:
             logger.exception(f"Failed to generate PDF: {e}")
             return None
+
+    # ========== Research Report Export ==========
+
+    RESEARCH_REPORT_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{title}</title>
+    <style>
+        @page {{
+            size: A4;
+            margin: 2cm;
+        }}
+        body {{
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            font-size: 12px;
+            line-height: 1.5;
+        }}
+        .header {{
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 20px;
+        }}
+        .header h1 {{
+            color: #0066cc;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }}
+        .header .vertical-badge {{
+            display: inline-block;
+            background: #e3f2fd;
+            color: #0066cc;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            text-transform: capitalize;
+            margin-bottom: 10px;
+        }}
+        .header .generated-date {{
+            color: #666;
+            font-size: 11px;
+        }}
+        .page-break {{
+            page-break-before: always;
+        }}
+        .section {{
+            margin-bottom: 25px;
+            page-break-inside: avoid;
+        }}
+        .section-title {{
+            font-size: 16px;
+            font-weight: bold;
+            color: #0066cc;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }}
+        .subsection-title {{
+            font-size: 13px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 8px;
+            margin-top: 15px;
+        }}
+        .stats-grid {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }}
+        .stat-card {{
+            background: #f5f5f5;
+            padding: 10px 15px;
+            border-radius: 5px;
+            text-align: center;
+            flex: 1;
+            min-width: 100px;
+        }}
+        .stat-card .label {{
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+        }}
+        .stat-card .value {{
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }}
+        .card {{
+            background: #f9f9f9;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }}
+        .card-title {{
+            font-weight: bold;
+            color: #333;
+        }}
+        .card-subtitle {{
+            font-size: 11px;
+            color: #666;
+        }}
+        .card-content {{
+            margin-top: 5px;
+            color: #444;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+        }}
+        th, td {{
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }}
+        th {{
+            background: #0066cc;
+            color: white;
+            font-weight: bold;
+        }}
+        tr:nth-child(even) {{
+            background: #f9f9f9;
+        }}
+        ul {{
+            margin: 0;
+            padding-left: 20px;
+        }}
+        li {{
+            margin-bottom: 5px;
+        }}
+        .highlight-box {{
+            background: #e3f2fd;
+            border-left: 4px solid #0066cc;
+            padding: 10px 15px;
+            margin: 10px 0;
+        }}
+        .warning-box {{
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 10px 15px;
+            margin: 10px 0;
+        }}
+        .success-box {{
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 10px 15px;
+            margin: 10px 0;
+        }}
+        .gap-grid {{
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }}
+        .gap-column {{
+            flex: 1;
+            min-width: 200px;
+        }}
+        .gap-item {{
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            font-size: 11px;
+        }}
+        .gap-tech {{
+            background: #ffebee;
+            border-left: 3px solid #f44336;
+        }}
+        .gap-capability {{
+            background: #fff3e0;
+            border-left: 3px solid #ff9800;
+        }}
+        .gap-process {{
+            background: #f3e5f5;
+            border-left: 3px solid #9c27b0;
+        }}
+        .confidence-badge {{
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }}
+        .confidence-high {{
+            background: #e8f5e9;
+            color: #2e7d32;
+        }}
+        .confidence-medium {{
+            background: #fff3e0;
+            color: #f57c00;
+        }}
+        .confidence-low {{
+            background: #ffebee;
+            color: #c62828;
+        }}
+        .source-item {{
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }}
+        .source-number {{
+            background: #0066cc;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }}
+        .source-content {{
+            flex: 1;
+        }}
+        .source-title {{
+            font-weight: bold;
+            color: #333;
+        }}
+        .source-url {{
+            font-size: 10px;
+            color: #0066cc;
+            word-break: break-all;
+        }}
+        .raw-output {{
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 10px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: none;
+            overflow: visible;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }}
+        .sentiment-badge {{
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 10px;
+            text-transform: capitalize;
+        }}
+        .sentiment-positive {{
+            background: #e8f5e9;
+            color: #2e7d32;
+        }}
+        .sentiment-negative {{
+            background: #ffebee;
+            color: #c62828;
+        }}
+        .sentiment-neutral {{
+            background: #f5f5f5;
+            color: #666;
+        }}
+        .sentiment-mixed {{
+            background: #fff3e0;
+            color: #f57c00;
+        }}
+        .rating-bar {{
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }}
+        .rating-bar-fill {{
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            flex: 1;
+            overflow: hidden;
+        }}
+        .rating-bar-value {{
+            height: 100%;
+            background: #0066cc;
+            border-radius: 4px;
+        }}
+    </style>
+</head>
+<body>
+    {content}
+
+    <div class="footer">
+        Generated by Agent Researcher | {generated_date}
+    </div>
+</body>
+</html>
+'''
+
+    def generate_research_report_html(self, research_job) -> str:
+        """Generate HTML for a complete research report.
+
+        Args:
+            research_job: ResearchJob model instance with related data
+
+        Returns:
+            HTML string
+        """
+        # Get related objects with graceful None handling
+        report = getattr(research_job, 'report', None)
+        gap_analysis = getattr(research_job, 'gap_analysis', None)
+        internal_ops = getattr(research_job, 'internal_ops', None)
+
+        # Handle both prefetched and non-prefetched case studies
+        case_studies = list(research_job.competitor_case_studies.all()) if hasattr(research_job, 'competitor_case_studies') else []
+
+        # Build content sections
+        sections = []
+
+        # Header
+        header_html = self._build_header(research_job)
+        sections.append(header_html)
+
+        # Overview section
+        overview_html = self._build_overview_section(research_job, report)
+        sections.append(overview_html)
+
+        # Deep Research section (page break)
+        if report:
+            deep_research_html = self._build_deep_research_section(report)
+            sections.append(f'<div class="page-break"></div>{deep_research_html}')
+
+        # Competitors section (page break)
+        if case_studies:
+            competitors_html = self._build_competitors_section(case_studies)
+            sections.append(f'<div class="page-break"></div>{competitors_html}')
+
+        # Gap Analysis section (page break)
+        if gap_analysis:
+            gaps_html = self._build_gap_analysis_section(gap_analysis)
+            sections.append(f'<div class="page-break"></div>{gaps_html}')
+
+        # Inside Intel section (page break)
+        if internal_ops:
+            intel_html = self._build_inside_intel_section(internal_ops)
+            sections.append(f'<div class="page-break"></div>{intel_html}')
+
+        # Sources section (page break)
+        if report and report.web_sources:
+            sources_html = self._build_sources_section(report.web_sources)
+            sections.append(f'<div class="page-break"></div>{sources_html}')
+
+        # Raw Output section (page break)
+        if research_job.result:
+            raw_html = self._build_raw_output_section(research_job.result)
+            sections.append(f'<div class="page-break"></div>{raw_html}')
+
+        # Combine all sections
+        content = '\n'.join(sections)
+
+        return self.RESEARCH_REPORT_TEMPLATE.format(
+            title=f"Research Report: {research_job.client_name}",
+            content=content,
+            generated_date=datetime.now().strftime('%B %d, %Y at %I:%M %p'),
+        )
+
+    def _build_header(self, job) -> str:
+        """Build the report header."""
+        vertical_html = ''
+        if job.vertical:
+            vertical_display = job.vertical.replace('_', ' ')
+            vertical_html = f'<div class="vertical-badge">{html.escape(vertical_display)}</div>'
+
+        return f'''
+        <div class="header">
+            <h1>{html.escape(job.client_name)}</h1>
+            {vertical_html}
+            <div class="generated-date">Generated on {datetime.now().strftime('%B %d, %Y')}</div>
+        </div>
+        '''
+
+    def _build_overview_section(self, job, report) -> str:
+        """Build the Overview section."""
+        sections = ['<div class="section"><div class="section-title">Overview</div>']
+
+        # Stats grid
+        if report:
+            stats = []
+            if report.founded_year:
+                stats.append(f'<div class="stat-card"><div class="label">Founded</div><div class="value">{report.founded_year}</div></div>')
+            if report.employee_count:
+                stats.append(f'<div class="stat-card"><div class="label">Employees</div><div class="value">{html.escape(report.employee_count)}</div></div>')
+            if report.annual_revenue:
+                stats.append(f'<div class="stat-card"><div class="label">Revenue</div><div class="value">{html.escape(report.annual_revenue)}</div></div>')
+            if report.digital_maturity:
+                maturity_display = report.digital_maturity.replace('_', ' ').title()
+                stats.append(f'<div class="stat-card"><div class="label">Digital Maturity</div><div class="value">{html.escape(maturity_display)}</div></div>')
+
+            if stats:
+                sections.append(f'<div class="stats-grid">{"".join(stats)}</div>')
+
+            # Company Overview
+            if report.company_overview:
+                sections.append(f'''
+                <div class="subsection-title">Company Overview</div>
+                <p>{html.escape(report.company_overview)}</p>
+                ''')
+
+            # Decision Makers
+            if report.decision_makers:
+                sections.append('<div class="subsection-title">Key Decision Makers</div>')
+                for dm in report.decision_makers:
+                    name = html.escape(dm.get('name', ''))
+                    title = html.escape(dm.get('title', ''))
+                    background = html.escape(dm.get('background', ''))
+                    sections.append(f'''
+                    <div class="card">
+                        <div class="card-title">{name}</div>
+                        <div class="card-subtitle">{title}</div>
+                        {f'<div class="card-content">{background}</div>' if background else ''}
+                    </div>
+                    ''')
+
+            # Pain Points
+            if report.pain_points:
+                sections.append('<div class="subsection-title">Pain Points</div><ul>')
+                for point in report.pain_points:
+                    sections.append(f'<li style="color: #c62828;">{html.escape(point)}</li>')
+                sections.append('</ul>')
+
+            # Opportunities
+            if report.opportunities:
+                sections.append('<div class="subsection-title">Opportunities</div><ul>')
+                for opp in report.opportunities:
+                    sections.append(f'<li style="color: #2e7d32;">{html.escape(opp)}</li>')
+                sections.append('</ul>')
+
+            # Talking Points
+            if report.talking_points:
+                sections.append('<div class="subsection-title">Recommended Talking Points</div>')
+                for point in report.talking_points:
+                    sections.append(f'<div class="highlight-box">{html.escape(point)}</div>')
+        else:
+            sections.append('<p>Overview data not available.</p>')
+
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_deep_research_section(self, report) -> str:
+        """Build the Deep Research section."""
+        sections = ['<div class="section"><div class="section-title">Deep Research</div>']
+
+        # Company Details
+        details = []
+        if report.headquarters:
+            details.append(('Headquarters', report.headquarters))
+        if report.website:
+            details.append(('Website', report.website))
+        if report.founded_year:
+            details.append(('Founded', str(report.founded_year)))
+        if report.employee_count:
+            details.append(('Employees', report.employee_count))
+        if report.annual_revenue:
+            details.append(('Revenue', report.annual_revenue))
+
+        if details:
+            sections.append('<div class="subsection-title">Company Details</div>')
+            sections.append('<table><tr><th>Field</th><th>Value</th></tr>')
+            for label, value in details:
+                sections.append(f'<tr><td>{html.escape(label)}</td><td>{html.escape(value)}</td></tr>')
+            sections.append('</table>')
+
+        # AI Assessment
+        if report.digital_maturity or report.ai_adoption_stage or report.ai_footprint:
+            sections.append('<div class="subsection-title">Digital & AI Assessment</div>')
+            assessment_items = []
+            if report.digital_maturity:
+                maturity_display = report.digital_maturity.replace('_', ' ').title()
+                assessment_items.append(f'<div class="stat-card"><div class="label">Digital Maturity</div><div class="value">{html.escape(maturity_display)}</div></div>')
+            if report.ai_adoption_stage:
+                stage_display = report.ai_adoption_stage.replace('_', ' ').title()
+                assessment_items.append(f'<div class="stat-card"><div class="label">AI Adoption</div><div class="value">{html.escape(stage_display)}</div></div>')
+            if assessment_items:
+                sections.append(f'<div class="stats-grid">{"".join(assessment_items)}</div>')
+            if report.ai_footprint:
+                sections.append(f'<p>{html.escape(report.ai_footprint)}</p>')
+
+        # Recent News
+        if report.recent_news:
+            sections.append('<div class="subsection-title">Recent News</div>')
+            for news in report.recent_news[:5]:  # Limit to 5 items
+                title = html.escape(news.get('title', ''))
+                summary = html.escape(news.get('summary', ''))
+                date = html.escape(news.get('date', ''))
+                source = html.escape(news.get('source', ''))
+                sections.append(f'''
+                <div class="card">
+                    <div class="card-title">{title}</div>
+                    <div class="card-content">{summary}</div>
+                    <div class="card-subtitle">{date}{f" - {source}" if source else ""}</div>
+                </div>
+                ''')
+
+        # Strategic Goals
+        if report.strategic_goals:
+            sections.append('<div class="subsection-title">Strategic Goals</div><ol>')
+            for goal in report.strategic_goals:
+                sections.append(f'<li>{html.escape(goal)}</li>')
+            sections.append('</ol>')
+
+        # Key Initiatives
+        if report.key_initiatives:
+            sections.append('<div class="subsection-title">Key Initiatives</div>')
+            for init in report.key_initiatives:
+                sections.append(f'<div class="highlight-box">{html.escape(init)}</div>')
+
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_competitors_section(self, case_studies) -> str:
+        """Build the Competitors section."""
+        sections = ['<div class="section"><div class="section-title">Competitor Case Studies</div>']
+        sections.append(f'<p>Found {len(case_studies)} relevant competitor case studies:</p>')
+
+        sections.append('''
+        <table>
+            <tr>
+                <th>Competitor</th>
+                <th>Case Study</th>
+                <th>Technologies</th>
+                <th>Match</th>
+            </tr>
+        ''')
+
+        for cs in case_studies:
+            competitor_name = html.escape(cs.competitor_name)
+            case_title = html.escape(cs.case_study_title)
+            summary = html.escape(cs.summary[:200] + '...' if len(cs.summary) > 200 else cs.summary)
+            technologies = ', '.join(cs.technologies_used[:3]) if cs.technologies_used else '-'
+            match_pct = f"{round(cs.relevance_score * 100)}%"
+
+            sections.append(f'''
+            <tr>
+                <td><strong>{competitor_name}</strong></td>
+                <td>{case_title}<br><small style="color: #666;">{summary}</small></td>
+                <td>{html.escape(technologies)}</td>
+                <td style="text-align: center;"><strong>{match_pct}</strong></td>
+            </tr>
+            ''')
+
+        sections.append('</table>')
+
+        # Outcomes for top case studies
+        for cs in case_studies[:3]:
+            if cs.outcomes:
+                sections.append(f'<div class="subsection-title">{html.escape(cs.competitor_name)} - Key Outcomes</div>')
+                sections.append('<ul>')
+                for outcome in cs.outcomes:
+                    sections.append(f'<li style="color: #2e7d32;">{html.escape(outcome)}</li>')
+                sections.append('</ul>')
+
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_gap_analysis_section(self, gap_analysis) -> str:
+        """Build the Gap Analysis section."""
+        sections = ['<div class="section"><div class="section-title">Gap Analysis</div>']
+
+        # Confidence score
+        confidence_pct = round(gap_analysis.confidence_score * 100)
+        confidence_class = 'confidence-high' if confidence_pct >= 70 else ('confidence-medium' if confidence_pct >= 40 else 'confidence-low')
+        sections.append(f'''
+        <p>Analysis Confidence: <span class="confidence-badge {confidence_class}">{confidence_pct}%</span></p>
+        ''')
+
+        # Priority Areas
+        if gap_analysis.priority_areas:
+            sections.append('<div class="subsection-title">Priority Areas</div>')
+            for i, area in enumerate(gap_analysis.priority_areas, 1):
+                sections.append(f'<div class="warning-box"><strong>#{i}</strong> {html.escape(area)}</div>')
+
+        # Gap Grid
+        has_gaps = gap_analysis.technology_gaps or gap_analysis.capability_gaps or gap_analysis.process_gaps
+        if has_gaps:
+            sections.append('<div class="subsection-title">Identified Gaps</div><div class="gap-grid">')
+
+            if gap_analysis.technology_gaps:
+                sections.append('<div class="gap-column"><strong>Technology Gaps</strong>')
+                for gap in gap_analysis.technology_gaps:
+                    sections.append(f'<div class="gap-item gap-tech">{html.escape(gap)}</div>')
+                sections.append('</div>')
+
+            if gap_analysis.capability_gaps:
+                sections.append('<div class="gap-column"><strong>Capability Gaps</strong>')
+                for gap in gap_analysis.capability_gaps:
+                    sections.append(f'<div class="gap-item gap-capability">{html.escape(gap)}</div>')
+                sections.append('</div>')
+
+            if gap_analysis.process_gaps:
+                sections.append('<div class="gap-column"><strong>Process Gaps</strong>')
+                for gap in gap_analysis.process_gaps:
+                    sections.append(f'<div class="gap-item gap-process">{html.escape(gap)}</div>')
+                sections.append('</div>')
+
+            sections.append('</div>')
+
+        # Recommendations
+        if gap_analysis.recommendations:
+            sections.append('<div class="subsection-title">Recommendations</div>')
+            for rec in gap_analysis.recommendations:
+                sections.append(f'<div class="success-box">{html.escape(rec)}</div>')
+
+        # Analysis Notes
+        if gap_analysis.analysis_notes:
+            sections.append(f'<div class="subsection-title">Analysis Notes</div><p>{html.escape(gap_analysis.analysis_notes)}</p>')
+
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_inside_intel_section(self, intel) -> str:
+        """Build the Inside Intel section."""
+        sections = ['<div class="section"><div class="section-title">Inside Intel</div>']
+
+        # Employee Sentiment
+        if intel.employee_sentiment:
+            sentiment = intel.employee_sentiment
+            sections.append('<div class="subsection-title">Employee Sentiment</div>')
+
+            # Overall rating
+            overall = sentiment.get('overall_rating', 0)
+            sections.append(f'''
+            <div class="stats-grid">
+                <div class="stat-card"><div class="label">Overall Rating</div><div class="value">{overall:.1f}/5.0</div></div>
+                <div class="stat-card"><div class="label">Would Recommend</div><div class="value">{sentiment.get("recommend_pct", 0)}%</div></div>
+                <div class="stat-card"><div class="label">Trend</div><div class="value" style="text-transform: capitalize;">{sentiment.get("trend", "stable")}</div></div>
+            </div>
+            ''')
+
+            # Category ratings
+            categories = ['work_life_balance', 'compensation', 'culture', 'management']
+            category_ratings = []
+            for cat in categories:
+                val = sentiment.get(cat, 0)
+                if val:
+                    label = cat.replace('_', ' ').title()
+                    category_ratings.append(f'<div class="stat-card"><div class="label">{label}</div><div class="value">{val:.1f}</div></div>')
+            if category_ratings:
+                sections.append(f'<div class="stats-grid">{"".join(category_ratings)}</div>')
+
+            # Themes
+            positive_themes = sentiment.get('positive_themes', [])
+            negative_themes = sentiment.get('negative_themes', [])
+            if positive_themes:
+                themes_html = ', '.join(html.escape(t) for t in positive_themes)
+                sections.append(f'<p><strong>Positive Themes:</strong> {themes_html}</p>')
+            if negative_themes:
+                themes_html = ', '.join(html.escape(t) for t in negative_themes)
+                sections.append(f'<p><strong>Negative Themes:</strong> {themes_html}</p>')
+
+        # Job Postings / Hiring
+        if intel.job_postings:
+            jobs = intel.job_postings
+            sections.append('<div class="subsection-title">Hiring Intelligence</div>')
+            sections.append(f'''
+            <div class="stats-grid">
+                <div class="stat-card"><div class="label">Total Open Positions</div><div class="value">{jobs.get("total_openings", 0)}</div></div>
+            </div>
+            ''')
+
+            # Departments hiring
+            depts = jobs.get('departments_hiring', {})
+            if depts:
+                sections.append('<p><strong>Departments Hiring:</strong></p><ul>')
+                for dept, count in sorted(depts.items(), key=lambda x: x[1], reverse=True)[:5]:
+                    sections.append(f'<li>{html.escape(dept)}: {count} positions</li>')
+                sections.append('</ul>')
+
+            # Skills sought
+            skills = jobs.get('skills_sought', [])
+            if skills:
+                skills_html = ', '.join(html.escape(s) for s in skills[:10])
+                sections.append(f'<p><strong>Key Skills Sought:</strong> {skills_html}</p>')
+
+            # Urgency signals
+            urgency = jobs.get('urgency_signals', [])
+            if urgency:
+                sections.append('<p><strong>Urgency Signals:</strong></p>')
+                for signal in urgency:
+                    sections.append(f'<div class="warning-box">{html.escape(signal)}</div>')
+
+            # Insights
+            insights = jobs.get('insights', '')
+            if insights:
+                sections.append(f'<div class="highlight-box">{html.escape(insights)}</div>')
+
+        # LinkedIn Presence
+        if intel.linkedin_presence:
+            linkedin = intel.linkedin_presence
+            sections.append('<div class="subsection-title">LinkedIn Presence</div>')
+            sections.append(f'''
+            <div class="stats-grid">
+                <div class="stat-card"><div class="label">Followers</div><div class="value">{linkedin.get("follower_count", 0):,}</div></div>
+                <div class="stat-card"><div class="label">Engagement</div><div class="value" style="text-transform: capitalize;">{linkedin.get("engagement_level", "n/a")}</div></div>
+                <div class="stat-card"><div class="label">Employee Trend</div><div class="value" style="text-transform: capitalize;">{linkedin.get("employee_trend", "stable")}</div></div>
+            </div>
+            ''')
+
+            # Notable changes
+            changes = linkedin.get('notable_changes', [])
+            if changes:
+                sections.append('<p><strong>Notable Changes:</strong></p><ul>')
+                for change in changes:
+                    sections.append(f'<li>{html.escape(change)}</li>')
+                sections.append('</ul>')
+
+        # Key Insights
+        if intel.key_insights:
+            sections.append('<div class="subsection-title">Key Insights & Recommendations</div>')
+            for insight in intel.key_insights:
+                sections.append(f'<div class="warning-box">{html.escape(insight)}</div>')
+
+        # Gap Correlations
+        if intel.gap_correlations:
+            sections.append('<div class="subsection-title">Gap Correlation Insights</div>')
+            sections.append('''
+            <table>
+                <tr>
+                    <th>Gap Type</th>
+                    <th>Description</th>
+                    <th>Evidence</th>
+                    <th>Confidence</th>
+                </tr>
+            ''')
+            for corr in intel.gap_correlations:
+                gap_type = html.escape(corr.get('gap_type', '').title())
+                desc = html.escape(corr.get('description', ''))
+                evidence = html.escape(corr.get('evidence', ''))
+                confidence = f"{round(corr.get('confidence', 0) * 100)}%"
+                sections.append(f'''
+                <tr>
+                    <td><strong>{gap_type}</strong></td>
+                    <td>{desc}</td>
+                    <td>{evidence}</td>
+                    <td style="text-align: center;">{confidence}</td>
+                </tr>
+                ''')
+            sections.append('</table>')
+
+        # Confidence footer
+        confidence_pct = round(intel.confidence_score * 100)
+        confidence_class = 'confidence-high' if confidence_pct >= 70 else ('confidence-medium' if confidence_pct >= 40 else 'confidence-low')
+        freshness = intel.data_freshness.replace('_', ' ') if intel.data_freshness else 'unknown'
+        sections.append(f'''
+        <p style="margin-top: 15px;">
+            Confidence: <span class="confidence-badge {confidence_class}">{confidence_pct}%</span>
+            &nbsp;&nbsp;|&nbsp;&nbsp;Data Freshness: {html.escape(freshness)}
+        </p>
+        ''')
+
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_sources_section(self, sources) -> str:
+        """Build the Sources section."""
+        sections = ['<div class="section"><div class="section-title">Sources</div>']
+        sections.append(f'<p>Research grounded with {len(sources)} web source{"s" if len(sources) != 1 else ""}:</p>')
+
+        for i, source in enumerate(sources, 1):
+            title = html.escape(source.get('title', 'Untitled Source'))
+            uri = source.get('uri', '')
+            uri_display = html.escape(uri) if uri else ''
+
+            sections.append(f'''
+            <div class="source-item">
+                <div class="source-number">{i}</div>
+                <div class="source-content">
+                    <div class="source-title">{title}</div>
+                    {f'<div class="source-url">{uri_display}</div>' if uri_display else ''}
+                </div>
+            </div>
+            ''')
+
+        sections.append('<p style="font-size: 10px; color: #666; margin-top: 15px;">Sources collected via Google Search grounding for real-time, verified information.</p>')
+        sections.append('</div>')
+        return '\n'.join(sections)
+
+    def _build_raw_output_section(self, result) -> str:
+        """Build the Raw Output section with full content."""
+        sections = ['<div class="section"><div class="section-title">Raw Output</div>']
+        sections.append(f'<div class="raw-output">{html.escape(result)}</div>')
+        sections.append('</div>')
+        return '\n'.join(sections)

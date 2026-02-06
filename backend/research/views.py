@@ -1,9 +1,11 @@
 import logging
+import os
 import threading
+from django.http import FileResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis
+from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 from .serializers import (
     ResearchJobCreateSerializer,
     ResearchJobDetailSerializer,
@@ -12,6 +14,7 @@ from .serializers import (
     GapAnalysisSerializer,
 )
 from .graph import research_workflow
+from assets.services.export import ExportService
 
 logger = logging.getLogger(__name__)
 
@@ -180,3 +183,55 @@ class GapAnalysisView(APIView):
                 {'error': 'Gap analysis not yet available'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+
+class ResearchPdfExportView(APIView):
+    """Export complete research as PDF."""
+
+    def get(self, request, pk):
+        try:
+            # Get job with all related data for efficient queries
+            job = ResearchJob.objects.select_related(
+                'report',
+                'gap_analysis',
+                'internal_ops',
+            ).prefetch_related(
+                'competitor_case_studies',
+            ).get(pk=pk)
+        except ResearchJob.DoesNotExist:
+            return Response(
+                {'error': 'Research job not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Validate job is completed
+        if job.status != 'completed':
+            return Response(
+                {'error': f'Cannot export research with status: {job.status}. Research must be completed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Generate HTML and PDF
+        export_service = ExportService()
+        html_content = export_service.generate_research_report_html(job)
+
+        # Generate unique filename
+        safe_name = "".join(c if c.isalnum() else "_" for c in job.client_name)
+        filename = f"research_{safe_name}_{str(job.id)[:8]}.pdf"
+
+        pdf_path = export_service.export_to_pdf(html_content, filename)
+
+        if not pdf_path:
+            return Response(
+                {'error': 'Failed to generate PDF. Please ensure weasyprint is installed.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Return file as downloadable response
+        response = FileResponse(
+            open(pdf_path, 'rb'),
+            content_type='application/pdf',
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+        return response

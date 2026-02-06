@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel, GapCorrelation, WebSource } from '@/types';
+import { api } from '@/lib/api';
 
 interface ResearchResultsProps {
   job: ResearchJob;
@@ -11,6 +12,20 @@ type TabId = 'overview' | 'report' | 'competitors' | 'gaps' | 'intel' | 'sources
 
 export default function ResearchResults({ job }: ResearchResultsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleExportPdf = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await api.downloadResearchPdf(job.id);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : 'Failed to export PDF');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const tabs = [
     { id: 'overview' as TabId, label: 'Overview', available: true },
@@ -33,15 +48,46 @@ export default function ResearchResults({ job }: ResearchResultsProps) {
               <span className="text-sm text-gray-500 capitalize">{job.vertical.replace('_', ' ')}</span>
             )}
           </div>
-          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-            job.status === 'completed' ? 'bg-green-100 text-green-800' :
-            job.status === 'failed' ? 'bg-red-100 text-red-800' :
-            job.status === 'running' ? 'bg-blue-100 text-blue-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {job.status}
-          </span>
+          <div className="flex items-center gap-3">
+            {job.status === 'completed' && (
+              <button
+                onClick={handleExportPdf}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {isExporting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Export PDF
+                  </>
+                )}
+              </button>
+            )}
+            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+              job.status === 'completed' ? 'bg-green-100 text-green-800' :
+              job.status === 'failed' ? 'bg-red-100 text-red-800' :
+              job.status === 'running' ? 'bg-blue-100 text-blue-800' :
+              'bg-gray-100 text-gray-800'
+            }`}>
+              {job.status}
+            </span>
+          </div>
         </div>
+        {exportError && (
+          <div className="mt-2 text-sm text-red-600">
+            {exportError}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
