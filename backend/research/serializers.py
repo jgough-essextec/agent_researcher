@@ -125,6 +125,7 @@ class ResearchJobDetailSerializer(serializers.ModelSerializer):
             'sales_history',
             'prompt',
             'status',
+            'current_step',
             'result',
             'error',
             'vertical',
@@ -138,6 +139,7 @@ class ResearchJobDetailSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id',
             'status',
+            'current_step',
             'result',
             'error',
             'vertical',

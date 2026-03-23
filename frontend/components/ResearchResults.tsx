@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel, GapCorrelation, WebSource } from '@/types';
 import { api } from '@/lib/api';
 import { preprocessCitations } from '@/lib/citations';
+import { ResearchAnimation } from '@/components/ResearchAnimation';
 
 function MarkdownText({
   content,
@@ -165,10 +166,7 @@ export default function ResearchResults({ job }: ResearchResultsProps) {
       {/* Content */}
       <div className="p-4 bg-white">
         {job.status === 'running' || job.status === 'pending' ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span className="ml-3 text-gray-600">Researching...</span>
-          </div>
+          <ResearchAnimation currentStep={job.current_step} clientName={job.client_name} />
         ) : job.status === 'failed' ? (
           <p className="text-red-600">{job.error || 'Research failed'}</p>
         ) : (

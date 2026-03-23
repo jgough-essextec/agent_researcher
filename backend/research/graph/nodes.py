@@ -6,6 +6,17 @@ from .state import ResearchState
 logger = logging.getLogger(__name__)
 
 
+def _update_job_step(job_id: str, step: str) -> None:
+    """Write current_step to DB so frontend polling can show progress. Non-fatal."""
+    if not job_id:
+        return
+    try:
+        from ..models import ResearchJob
+        ResearchJob.objects.filter(id=job_id).update(current_step=step)
+    except Exception:
+        pass
+
+
 def validate_input(state: ResearchState) -> ResearchState:
     """Validate the input data before starting research."""
     if not state.get('client_name'):
@@ -32,6 +43,8 @@ def conduct_research(state: ResearchState) -> ResearchState:
     """Conduct deep research using Gemini API with Google Search grounding (AGE-10)."""
     if state.get('status') == 'failed':
         return state
+
+    _update_job_step(state.get('job_id'), 'research')
 
     try:
         from ..services.gemini import GeminiClient
@@ -77,6 +90,8 @@ def classify_vertical(state: ResearchState) -> ResearchState:
     if state.get('status') == 'failed':
         return state
 
+    _update_job_step(state.get('job_id'), 'classify')
+
     try:
         from ..services.gemini import GeminiClient
         from ..services.classifier import VerticalClassifier
@@ -111,6 +126,8 @@ def search_competitors(state: ResearchState) -> ResearchState:
     """Search for competitor AI case studies (AGE-12)."""
     if state.get('status') == 'failed':
         return state
+
+    _update_job_step(state.get('job_id'), 'competitors')
 
     try:
         from ..services.gemini import GeminiClient
@@ -171,6 +188,8 @@ def analyze_gaps(state: ResearchState) -> ResearchState:
     if state.get('status') == 'failed':
         return state
 
+    _update_job_step(state.get('job_id'), 'gap_analysis')
+
     try:
         from ..services.gemini import GeminiClient
         from ..services.gap_analysis import GapAnalysisService
@@ -230,6 +249,8 @@ def research_internal_ops(state: ResearchState) -> ResearchState:
     if state.get('status') == 'failed':
         return state
 
+    _update_job_step(state.get('job_id'), 'internal_ops')
+
     try:
         from ..services.gemini import GeminiClient
         from ..services.internal_ops import InternalOpsService
@@ -275,6 +296,8 @@ def correlate_internal_ops(state: ResearchState) -> ResearchState:
     """Correlate gap analysis findings with internal ops evidence (AGE-20)."""
     if state.get('status') == 'failed':
         return state
+
+    _update_job_step(state.get('job_id'), 'correlate')
 
     gap_analysis = state.get('gap_analysis')
     internal_ops = state.get('internal_ops')
@@ -329,6 +352,7 @@ def finalize_result(state: ResearchState) -> ResearchState:
     from ..models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
     job_id = state.get('job_id')
+    _update_job_step(job_id, 'finalize')
     if not job_id:
         logger.warning("No job_id in state, skipping database persistence")
         return {**state, 'status': 'completed'}
@@ -464,9 +488,10 @@ def finalize_result(state: ResearchState) -> ResearchState:
     # HTTP request handler is interrupted (e.g. Cloud Run 300s timeout).
     try:
         job.status = 'completed'
+        job.current_step = ''
         job.result = state.get('result', '')
         job.error = ''
-        job.save(update_fields=['status', 'result', 'error'])
+        job.save(update_fields=['status', 'current_step', 'result', 'error'])
         logger.info(f"Job {job_id} persisted as completed in DB")
     except Exception as e:
         logger.exception("Error persisting final job status for %s", job_id)

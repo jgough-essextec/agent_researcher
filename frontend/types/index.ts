@@ -168,6 +168,7 @@ export interface ResearchJob {
   sales_history: string;
   prompt: string;
   status: 'pending' | 'running' | 'completed' | 'failed';
+  current_step?: string;
   result: string;
   error: string;
   vertical?: string;
