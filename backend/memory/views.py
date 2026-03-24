@@ -1,6 +1,7 @@
 """Views for the memory/knowledge base API."""
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import ClientProfile, SalesPlay, MemoryEntry
 from .serializers import (
@@ -82,6 +83,9 @@ class ContextQueryView(APIView):
 
 class CaptureFromResearchView(APIView):
     """Capture insights from a completed research job."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
 
     def post(self, request, pk):
         """Capture insights from a research job.

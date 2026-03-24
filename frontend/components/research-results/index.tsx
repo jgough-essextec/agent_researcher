@@ -112,6 +112,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
             tab.cta ? (
               <button
                 key={tab.id}
+                data-testid={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`ml-auto mr-2 my-1.5 px-3 py-1 text-sm font-medium whitespace-nowrap rounded-full transition-colors ${
                   activeTab === tab.id
@@ -124,6 +125,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
             ) : (
               <button
                 key={tab.id}
+                data-testid={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2 text-sm font-medium whitespace-nowrap border-b-2 ${
                   activeTab === tab.id

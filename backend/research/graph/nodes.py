@@ -414,6 +414,8 @@ def finalize_result(state: ResearchState) -> ResearchState:
     # Create CompetitorCaseStudy records — isolated so a bad URL cannot block gap/intel saves
     try:
         case_studies = state.get('competitor_case_studies', [])
+        # Delete stale records before re-creating — prevents duplicates on retry
+        CompetitorCaseStudy.objects.filter(research_job=job).delete()
         for cs in case_studies:
             CompetitorCaseStudy.objects.create(
                 research_job=job,

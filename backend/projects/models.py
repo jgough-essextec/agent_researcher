@@ -97,10 +97,16 @@ class Iteration(models.Model):
     def save(self, *args, **kwargs):
         # Auto-assign sequence number if not set
         if not self.sequence:
-            max_seq = Iteration.objects.filter(project=self.project).aggregate(
-                models.Max('sequence')
-            )['sequence__max']
-            self.sequence = (max_seq or 0) + 1
+            from django.db import transaction
+            with transaction.atomic():
+                max_seq = (
+                    Iteration.objects.select_for_update()
+                    .filter(project=self.project)
+                    .aggregate(models.Max('sequence'))['sequence__max']
+                )
+                self.sequence = (max_seq or 0) + 1
+                super().save(*args, **kwargs)
+                return
         super().save(*args, **kwargs)
 
 

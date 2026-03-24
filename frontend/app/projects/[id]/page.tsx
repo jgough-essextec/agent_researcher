@@ -506,7 +506,7 @@ function GeneratedAssetsPanel({
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Personas ({assets.personas.length})</p>
           <ul className="space-y-1">
             {assets.personas.map((p) => (
-              <li key={p.id} className="text-xs text-gray-800 truncate" title={p.title}>{p.title}</li>
+              <li key={p.id} className="text-xs text-gray-800 truncate" title={p.name}>{p.name}</li>
             ))}
           </ul>
         </div>

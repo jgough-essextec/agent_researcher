@@ -21,10 +21,12 @@ logger = logging.getLogger(__name__)
 
 
 def run_research_sync(job_id: str):
-    """Run research workflow synchronously. Called from a dedicated endpoint."""
+    """Run research workflow synchronously. Called from a dedicated endpoint.
+
+    The caller (ResearchJobExecuteView) is responsible for setting status='running'
+    before calling this function to prevent concurrent execution races.
+    """
     job = ResearchJob.objects.get(id=job_id)
-    job.status = 'running'
-    job.save()
 
     try:
         initial_state = {
@@ -44,17 +46,19 @@ def run_research_sync(job_id: str):
 
         result = research_workflow.invoke(initial_state)
 
+        # Only update if finalize_result did not already persist completed status
         job.refresh_from_db()
-        job.status = 'completed'
-        job.result = result.get('result', '')
-        job.error = result.get('error', '')
-        if result.get('vertical'):
-            job.vertical = result['vertical']
-        job.save()
-        logger.info(f"Research job {job_id} completed successfully")
+        if job.status != 'completed':
+            job.status = 'completed'
+            job.result = result.get('result', '')
+            job.error = result.get('error', '')
+            if result.get('vertical'):
+                job.vertical = result['vertical']
+            job.save()
+        logger.info("Research job %s completed successfully", job_id)
 
     except Exception as e:
-        logger.exception(f"Research job {job_id} failed")
+        logger.exception("Research job %s failed", job_id)
         job.refresh_from_db()
         job.status = 'failed'
         job.error = str(e)
@@ -106,18 +110,23 @@ class ResearchJobExecuteView(APIView):
     throttle_scope = 'ai_execute'
 
     def post(self, request, pk):
+        from django.db import transaction
+
         try:
-            job = ResearchJob.objects.get(pk=pk)
+            with transaction.atomic():
+                job = ResearchJob.objects.select_for_update().get(pk=pk)
+                if job.status not in ('pending', 'failed'):
+                    return Response(
+                        {'error': f'Job is already {job.status}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                # Lock claimed — mark running before releasing lock
+                job.status = 'running'
+                job.save(update_fields=['status'])
         except ResearchJob.DoesNotExist:
             return Response(
                 {'error': 'Research job not found'},
                 status=status.HTTP_404_NOT_FOUND
-            )
-
-        if job.status not in ('pending', 'failed'):
-            return Response(
-                {'error': f'Job is already {job.status}'},
-                status=status.HTTP_400_BAD_REQUEST
             )
 
         # Run synchronously — Cloud Run timeout is 300s
