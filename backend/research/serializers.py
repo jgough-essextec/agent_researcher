@@ -7,7 +7,7 @@ class ResearchJobCreateSerializer(serializers.ModelSerializer):
 
     # Bound unbounded text fields to prevent prompt injection via excessive input
     sales_history = serializers.CharField(max_length=5000, required=False, allow_blank=True)
-    prompt = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+    prompt = serializers.CharField(max_length=10000, required=False, allow_blank=True)
 
     class Meta:
         model = ResearchJob
