@@ -90,9 +90,9 @@ test.describe('Research results — tab navigation', () => {
 
     await navigateToResult(page, jobId!);
 
-    const intelTab = page.getByRole('button', { name: 'Inside Intel' });
+    const intelTab = page.getByRole('button', { name: 'Org Signals' });
     if (!(await intelTab.isVisible())) {
-      test.skip(true, 'No inside intel data for this job');
+      test.skip(true, 'No org signals data for this job');
     }
 
     await intelTab.click();
@@ -161,19 +161,19 @@ test.describe('Gap Analysis — markdown rendering regression', () => {
 
 
 // ---------------------------------------------------------------------------
-// Inside Intel rendering
+// Org Signals rendering
 // ---------------------------------------------------------------------------
 
-test.describe('Inside Intel — markdown rendering', () => {
+test.describe('Org Signals — markdown rendering', () => {
   test('key_insights render as formatted text with no raw asterisks', async ({ page }) => {
     const jobId = await getCompletedJobId(page);
     test.skip(!jobId, 'No completed research job found');
 
     await navigateToResult(page, jobId!);
 
-    const intelTab = page.getByRole('button', { name: 'Inside Intel' });
+    const intelTab = page.getByRole('button', { name: 'Org Signals' });
     if (!(await intelTab.isVisible())) {
-      test.skip(true, 'No inside intel data for this job');
+      test.skip(true, 'No org signals data for this job');
     }
 
     await intelTab.click();
@@ -189,13 +189,86 @@ test.describe('Inside Intel — markdown rendering', () => {
 
     await navigateToResult(page, jobId!);
 
-    const intelTab = page.getByRole('button', { name: 'Inside Intel' });
+    const intelTab = page.getByRole('button', { name: 'Org Signals' });
     if (!(await intelTab.isVisible())) {
-      test.skip(true, 'No inside intel data for this job');
+      test.skip(true, 'No org signals data for this job');
     }
 
     await intelTab.click();
 
     await expect(page.getByText(/\/5\.0/)).toBeVisible();
+  });
+});
+
+
+// ---------------------------------------------------------------------------
+// Full Report tab — crash regression (tech_partnerships object shape)
+// ---------------------------------------------------------------------------
+
+test.describe('Full Report tab — rendering regression', () => {
+  test('clicking Full Report tab renders without JS errors', async ({ page }) => {
+    const jobId = await getCompletedJobId(page);
+    test.skip(!jobId, 'No completed research job found');
+
+    const errors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
+
+    await navigateToResult(page, jobId!);
+
+    const reportTab = page.getByRole('button', { name: 'Full Report' });
+    if (!(await reportTab.isVisible())) {
+      test.skip(true, 'Full Report tab not visible for this job');
+    }
+
+    await reportTab.click();
+    await page.waitForLoadState('networkidle');
+
+    // Filter favicon/resource noise
+    const realErrors = errors.filter(
+      (e) => !e.includes('favicon') && !e.includes('404') && !e.includes('Failed to load resource')
+    );
+
+    expect(
+      realErrors,
+      `JS errors on Full Report tab: ${realErrors.join(' | ')}`,
+    ).toHaveLength(0);
+  });
+
+  test('Full Report tab renders company details section', async ({ page }) => {
+    const jobId = await getCompletedJobId(page);
+    test.skip(!jobId, 'No completed research job found');
+
+    await navigateToResult(page, jobId!);
+
+    const reportTab = page.getByRole('button', { name: 'Full Report' });
+    if (!(await reportTab.isVisible())) {
+      test.skip(true, 'Full Report tab not visible for this job');
+    }
+
+    await reportTab.click();
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByText('Company Details')).toBeVisible();
+  });
+
+  test('Full Report tab renders no raw asterisks', async ({ page }) => {
+    const jobId = await getCompletedJobId(page);
+    test.skip(!jobId, 'No completed research job found');
+
+    await navigateToResult(page, jobId!);
+
+    const reportTab = page.getByRole('button', { name: 'Full Report' });
+    if (!(await reportTab.isVisible())) {
+      test.skip(true, 'Full Report tab not visible for this job');
+    }
+
+    await reportTab.click();
+    await page.waitForLoadState('networkidle');
+
+    const bodyText = await page.locator('body').innerText();
+    const rawAsterisks = (bodyText.match(/\*\*/g) || []).length;
+    expect(rawAsterisks, `Found ${rawAsterisks} raw "**" markdown markers in Full Report tab`).toBe(0);
   });
 });
