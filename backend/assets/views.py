@@ -135,7 +135,7 @@ class GenerateOnePagerView(APIView):
         # Return existing one-pager if already generated and no specific use_case requested
         use_case_id = serializer.validated_data.get('use_case_id')
         if not use_case_id:
-            existing = OnePager.objects.filter(research_job=job, use_case__isnull=True).first()
+            existing = OnePager.objects.filter(research_job=job).first()
             if existing:
                 output_serializer = OnePagerSerializer(existing)
                 return Response(output_serializer.data, status=status.HTTP_200_OK)
