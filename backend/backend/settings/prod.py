@@ -36,7 +36,11 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 # Whitenoise middleware (insert after SecurityMiddleware)
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
 
-# Security settings — SSL redirect on by default in production; set SECURE_SSL_REDIRECT=false to disable (e.g. behind a load balancer that terminates SSL)
+# Security settings — Cloud Run terminates TLS at the load balancer and passes
+# X-Forwarded-Proto so Django knows the original request was HTTPS. Without
+# SECURE_PROXY_SSL_HEADER, SECURE_SSL_REDIRECT causes an infinite 301 loop.
+# Set SECURE_SSL_REDIRECT=false to disable entirely (e.g. fully internal service).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'true').lower() == 'true'
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
