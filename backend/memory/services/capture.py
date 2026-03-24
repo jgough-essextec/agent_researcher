@@ -25,7 +25,6 @@ class MemoryCapture:
             self._vector_store = VectorStore()
         return self._vector_store
 
-    @transaction.atomic
     def capture_from_research(self, research_job) -> Dict[str, Any]:
         """Capture insights from a completed research job.
 

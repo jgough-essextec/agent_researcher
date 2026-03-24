@@ -45,7 +45,9 @@ function DrawerContent({ plan, onClose }: AccountPlanDrawerProps) {
     if (!plan.html_content) return;
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(DOMPurify.sanitize(plan.html_content));
+    // Scope DOMPurify to the new window's document to avoid cross-document bypass
+    const purify = DOMPurify(win);
+    win.document.write(purify.sanitize(plan.html_content));
     win.document.close();
     win.focus();
     win.print();

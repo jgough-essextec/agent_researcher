@@ -17,7 +17,9 @@ export default function OnePagerSection({ onePager, generating, onGenerate }: On
     if (!onePager?.html_content) return;
     const win = window.open('', '_blank');
     if (!win) return;
-    win.document.write(DOMPurify.sanitize(onePager.html_content));
+    // Scope DOMPurify to the new window's document to avoid cross-document bypass
+    const purify = DOMPurify(win);
+    win.document.write(purify.sanitize(onePager.html_content));
     win.document.close();
     win.focus();
     win.print();

@@ -2,6 +2,7 @@
 from django.http import HttpResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import Persona, OnePager, AccountPlan, Citation
 from .serializers import (
@@ -12,6 +13,24 @@ from .serializers import (
     GenerateAssetSerializer,
 )
 from .services import PersonaGenerator, OnePagerGenerator, AccountPlanGenerator, ExportService
+from research.models import ResearchJob
+from ideation.models import UseCase
+
+
+def _get_completed_job(research_job_id):
+    """Fetch a completed ResearchJob or return an error Response.
+
+    Returns:
+        (ResearchJob, None) on success
+        (None, Response) when job not found or not completed
+    """
+    try:
+        job = ResearchJob.objects.get(pk=research_job_id)
+    except ResearchJob.DoesNotExist:
+        return None, Response({'error': 'Research job not found'}, status=status.HTTP_404_NOT_FOUND)
+    if job.status != 'completed':
+        return None, Response({'error': 'Research job is not completed'}, status=status.HTTP_400_BAD_REQUEST)
+    return job, None
 
 
 class PersonaListView(generics.ListAPIView):
@@ -37,6 +56,9 @@ class PersonaDetailView(generics.RetrieveUpdateDestroyAPIView):
 class GeneratePersonasView(APIView):
     """Generate buyer personas from research (AGE-21)."""
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
+
     def post(self, request):
         """Generate personas for a research job.
 
@@ -48,21 +70,9 @@ class GeneratePersonasView(APIView):
         serializer = GenerateAssetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from research.models import ResearchJob
-
-        try:
-            job = ResearchJob.objects.get(pk=serializer.validated_data['research_job_id'])
-        except ResearchJob.DoesNotExist:
-            return Response(
-                {'error': 'Research job not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        if job.status != 'completed':
-            return Response(
-                {'error': 'Research job is not completed'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        job, err = _get_completed_job(serializer.validated_data['research_job_id'])
+        if err:
+            return err
 
         # Generate personas
         generator = PersonaGenerator()
@@ -97,6 +107,9 @@ class OnePagerDetailView(generics.RetrieveUpdateDestroyAPIView):
 class GenerateOnePagerView(APIView):
     """Generate a one-pager from research (AGE-22)."""
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
+
     def post(self, request):
         """Generate a one-pager for a research job.
 
@@ -109,22 +122,9 @@ class GenerateOnePagerView(APIView):
         serializer = GenerateAssetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from research.models import ResearchJob
-        from ideation.models import UseCase
-
-        try:
-            job = ResearchJob.objects.get(pk=serializer.validated_data['research_job_id'])
-        except ResearchJob.DoesNotExist:
-            return Response(
-                {'error': 'Research job not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        if job.status != 'completed':
-            return Response(
-                {'error': 'Research job is not completed'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        job, err = _get_completed_job(serializer.validated_data['research_job_id'])
+        if err:
+            return err
 
         # Get optional use case
         use_case = None
@@ -133,7 +133,10 @@ class GenerateOnePagerView(APIView):
             try:
                 use_case = UseCase.objects.get(pk=use_case_id)
             except UseCase.DoesNotExist:
-                pass
+                return Response(
+                    {'error': 'Use case not found'},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
         # Generate one-pager
         generator = OnePagerGenerator()
@@ -191,6 +194,9 @@ class AccountPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
 class GenerateAccountPlanView(APIView):
     """Generate an account plan from research (AGE-23)."""
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
+
     def post(self, request):
         """Generate an account plan for a research job.
 
@@ -202,21 +208,9 @@ class GenerateAccountPlanView(APIView):
         serializer = GenerateAssetSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from research.models import ResearchJob
-
-        try:
-            job = ResearchJob.objects.get(pk=serializer.validated_data['research_job_id'])
-        except ResearchJob.DoesNotExist:
-            return Response(
-                {'error': 'Research job not found'},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        if job.status != 'completed':
-            return Response(
-                {'error': 'Research job is not completed'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        job, err = _get_completed_job(serializer.validated_data['research_job_id'])
+        if err:
+            return err
 
         # Return existing plan if already generated (avoid wasted Gemini call)
         existing = AccountPlan.objects.filter(research_job=job).first()

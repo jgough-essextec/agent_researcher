@@ -162,7 +162,9 @@ Next.js 14 App Router. API calls go through `frontend/lib/api.ts`. Types in `fro
 - **assets/views.py** — Added `AccountPlanListView` (GET /api/assets/account-plans/?research_job=<id>)
 - **memory/services/capture.py** — Deduplication guard prevents duplicate MemoryEntry records for same research job/content
 - **memory/services/vectorstore.py** — Removed deprecated `self.client.persist()` call (ChromaDB now auto-persists)
-- **projects/models.py** — WorkProduct.project is now nullable; new optional research_job FK for standalone research work tracking
+- **projects/models.py** — WorkProduct.project is now nullable; new optional research_job FK for standalone research work tracking; `CheckConstraint` enforces that at least one of project or research_job must be set (`workproduct_has_project_or_research_job`)
+- **backend/settings/prod.py** — Production security hardening: HSTS, XSS filter, content-type nosniff, X-Frame-Options DENY, secure cookies, SSL redirect; startup `RuntimeError` raised if SECRET_KEY, ALLOWED_HOSTS, or CORS_ALLOWED_ORIGINS are missing
+- **Test suite** — 280 backend tests collected (run with `pytest`)
 
 ### Frontend Updates
 - **types/index.ts** — Added interfaces: UseCase, FeasibilityAssessment, RefinedPlay, Persona, OnePager, AccountPlan

@@ -5,6 +5,10 @@ from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysi
 class ResearchJobCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating a new research job."""
 
+    # Bound unbounded text fields to prevent prompt injection via excessive input
+    sales_history = serializers.CharField(max_length=5000, required=False, allow_blank=True)
+    prompt = serializers.CharField(max_length=2000, required=False, allow_blank=True)
+
     class Meta:
         model = ResearchJob
         fields = ['id', 'client_name', 'sales_history', 'prompt']

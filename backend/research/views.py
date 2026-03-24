@@ -4,6 +4,7 @@ import threading
 from django.http import FileResponse
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 from .serializers import (
@@ -96,6 +97,9 @@ class ResearchJobExecuteView(APIView):
     This runs synchronously within the Cloud Run request timeout (300s),
     avoiding thread-based execution that gets killed on OOM or scale-down.
     """
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
 
     def post(self, request, pk):
         try:
@@ -227,11 +231,8 @@ class ResearchPdfExportView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-        # Return file as downloadable response
-        response = FileResponse(
-            open(pdf_path, 'rb'),
-            content_type='application/pdf',
-        )
+        # Return file as downloadable response — open handle managed by FileResponse
+        file_handle = open(pdf_path, 'rb')
+        response = FileResponse(file_handle, content_type='application/pdf')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
         return response

@@ -1,8 +1,11 @@
 """Serializers for the projects app."""
+import logging
 from rest_framework import serializers
 from django.contrib.contenttypes.models import ContentType
 
 from .models import Project, Iteration, WorkProduct, Annotation
+
+logger = logging.getLogger(__name__)
 
 
 class AnnotationSerializer(serializers.ModelSerializer):
@@ -64,6 +67,7 @@ class WorkProductSerializer(serializers.ModelSerializer):
 
             return preview
         except Exception:
+            logger.warning("Failed to get content preview for WorkProduct %s", obj.pk, exc_info=True)
             return None
 
     def get_source_iteration_sequence(self, obj):

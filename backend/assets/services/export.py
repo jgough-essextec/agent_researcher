@@ -318,7 +318,7 @@ class ExportService:
             export_dir = os.path.join(settings.BASE_DIR, 'exports')
             os.makedirs(export_dir, exist_ok=True)
 
-            output_path = os.path.join(export_dir, output_filename)
+            output_path = os.path.join(export_dir, os.path.basename(output_filename))
             HTML(string=html_content).write_pdf(output_path)
 
             logger.info(f"Generated PDF: {output_path}")

@@ -20,9 +20,12 @@ if not _allowed_hosts:
 ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
 
 # Database - PostgreSQL via DATABASE_URL
+_database_url = os.environ.get('DATABASE_URL')
+if not _database_url:
+    raise RuntimeError('DATABASE_URL environment variable must be set in production')
 DATABASES = {
     'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',
+        default=_database_url,
         conn_max_age=600,
     )
 }

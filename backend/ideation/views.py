@@ -1,6 +1,7 @@
 """Views for the ideation API."""
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from .models import UseCase, FeasibilityAssessment, RefinedPlay
 from .serializers import (
@@ -34,6 +35,9 @@ class UseCaseDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class GenerateUseCasesView(APIView):
     """Generate use cases from a completed research job (AGE-18)."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
 
     def post(self, request):
         """Generate use cases for a research job.
@@ -75,6 +79,9 @@ class GenerateUseCasesView(APIView):
 class AssessFeasibilityView(APIView):
     """Assess feasibility of a use case (AGE-19)."""
 
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
+
     def post(self, request, pk):
         """Assess feasibility for a use case.
 
@@ -101,6 +108,9 @@ class AssessFeasibilityView(APIView):
 
 class RefinePlayView(APIView):
     """Refine a use case into a sales play (AGE-20)."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'ai_execute'
 
     def post(self, request, pk):
         """Refine a use case into a play.

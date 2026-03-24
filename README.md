@@ -224,8 +224,33 @@ frontend/
 │
 ├── components/
 │   ├── ResearchForm.tsx            # Research job creation form
-│   ├── ResearchResults.tsx         # Tabbed results view (Overview, Deep Research, Competitors, Gap Analysis, Inside Intel, Sources, Raw Output)
+│   ├── ResearchResults.tsx         # Barrel re-export (logic in research-results/)
+│   ├── research-results/           # Decomposed results components
+│   │   ├── index.tsx               # Main component managing 8 tabs
+│   │   ├── tabs/
+│   │   │   ├── ReportTab.tsx       # Company overview, decision makers, news
+│   │   │   ├── SourcesTab.tsx      # Web sources from grounding
+│   │   │   ├── InsideIntelTab.tsx  # Employee sentiment, LinkedIn, job postings, news, gaps
+│   │   │   ├── CompetitorsTab.tsx  # Competitor case studies
+│   │   │   ├── GapsTab.tsx         # Technology/capability/process gaps
+│   │   │   ├── RawTab.tsx          # Raw JSON output
+│   │   │   └── GenerateTab.tsx     # Use cases, personas, one-pagers, account plans (NEW)
+│   │   ├── generate/               # Asset generation sections
+│   │   │   ├── UseCaseSection.tsx
+│   │   │   ├── PersonaSection.tsx
+│   │   │   ├── OnePagerSection.tsx
+│   │   │   ├── AccountPlanSection.tsx
+│   │   │   └── SaveToDealModal.tsx # Project picker/creator
+│   │   └── shared/                 # Shared utilities
+│   │       ├── StarOrSaveButton.tsx      # Conditional star/save
+│   │       ├── ResearchCompletionBanner.tsx
+│   │       ├── Section.tsx, DetailRow.tsx, StatCard.tsx
+│   │       ├── MarkdownText.tsx, GapList.tsx
+│   │       └── InsideIntelHelpers.tsx
 │   ├── Navigation.tsx              # Top navigation bar
+│   ├── ui/
+│   │   ├── Toast.tsx               # Toast notification renderer
+│   │   ├── Button.tsx, Card.tsx, Modal.tsx, Loading.tsx
 │   ├── projects/
 │   │   ├── ProjectList.tsx
 │   │   ├── ProjectDetail.tsx       # Project dashboard layout
@@ -233,18 +258,30 @@ frontend/
 │   │   ├── ComparisonView.tsx      # Side-by-side iteration diff
 │   │   ├── WorkProductsSidebar.tsx # Starred items
 │   │   └── AnnotationPanel.tsx     # Notes
-│   └── common/
-│       ├── StarButton.tsx          # Star/unstar button (built but unplaced)
-│       ├── Button.tsx, Card.tsx, Modal.tsx, Loading.tsx
 │
 ├── lib/
-│   └── api.ts                      # API client class (fetch wrapper + all endpoints)
+│   ├── api.ts                      # API client class (all endpoints: research, projects, ideation, assets, memory)
+│   └── toast.ts                    # Toast context and useToast hook
 │
 ├── types/
-│   └── index.ts                    # TypeScript interfaces
+│   └── index.ts                    # TypeScript interfaces (UseCase, Persona, OnePager, AccountPlan, etc.)
 │
 ├── styles/
 │   └── globals.css                 # Tailwind + global styles
+│
+├── app/
+│   ├── layout.tsx                  # Root layout wrapped with Providers
+│   ├── Providers.tsx               # Toast context provider
+│   ├── page.tsx                    # Home (quick research)
+│   ├── research/
+│   │   ├── page.tsx                # Research job list
+│   │   └── [id]/page.tsx           # Research results page (with 8 tabs)
+│   └── projects/
+│       ├── page.tsx                # Project list
+│       ├── new/page.tsx            # Create project
+│       └── [id]/
+│           ├── page.tsx            # Project dashboard
+│           └── iterate/page.tsx    # Start new iteration
 │
 ├── next.config.js
 ├── package.json
@@ -261,7 +298,7 @@ frontend/
 | Feature | Backend | Frontend | Page | Status |
 |---------|---------|----------|------|--------|
 | Quick single research job | ✅ | ✅ | Home (`/`) | **Live** |
-| Research results tabs (8 tabs) | ✅ | ✅ | `/research/[id]` | **Live** |
+| Research results tabs (8 tabs: Report, Sources, InsideIntel, Competitors, Gaps, Raw, Generate) | ✅ | ✅ | `/research/[id]` | **Live** |
 | Project-based research | ✅ | ✅ | `/projects` | **Live** |
 | Iterative research | ✅ | ✅ | `/projects/[id]` | **Live** |
 | Context accumulation between iterations | ✅ | ✅ | `/projects/[id]/iterate` | **Live** |
@@ -270,20 +307,20 @@ frontend/
 | Annotations (user notes) | ✅ | ✅ | `/projects/[id]` | **Live** |
 | PDF export of research results | ✅ | ✅ | `/research/[id]` | **Live** |
 
-### Backend-Complete, No UI
+### Backend-Complete Features with New UI (GenerateTab)
 
-| Feature | Backend | Frontend | Epic | Docs |
-|---------|---------|----------|------|------|
-| Use Case Generation | ✅ | ❌ | AGE-18 | `docs/feature-use-cases.md` |
-| Feasibility Assessment | ✅ | ❌ | AGE-19 | `docs/feature-feasibility.md` |
-| Refined Sales Plays | ✅ | ❌ | AGE-20 | `docs/feature-refined-play.md` |
-| Buyer Personas | ✅ | ❌ | AGE-21 | `docs/feature-personas.md` |
-| One-Pager Generator | ✅ | ❌ | AGE-22 | `docs/feature-one-pager.md` |
-| Account Plan Generator | ✅ | ❌ | AGE-23 | `docs/feature-account-plan.md` |
-| Citations (source tracking) | ✅ | ❌ | AGE-24 | `docs/feature-citations.md` |
-| Memory / Knowledge Base | ✅ | ❌ | AGE-14/15/16/17 | `docs/feature-memory.md` |
+| Feature | Backend | Frontend | Epic | Docs | Status |
+|---------|---------|----------|------|------|--------|
+| Use Case Generation | ✅ | ✅ (in GenerateTab) | AGE-18 | `docs/feature-use-cases.md` | **Live** |
+| Feasibility Assessment | ✅ | ✅ (in GenerateTab) | AGE-19 | `docs/feature-feasibility.md` | **Live** |
+| Refined Sales Plays | ✅ | ✅ (in GenerateTab) | AGE-20 | `docs/feature-refined-play.md` | **Live** |
+| Buyer Personas | ✅ | ✅ (in GenerateTab) | AGE-21 | `docs/feature-personas.md` | **Live** |
+| One-Pager Generator | ✅ | ✅ (in GenerateTab) | AGE-22 | `docs/feature-one-pager.md` | **Live** |
+| Account Plan Generator | ✅ | ✅ (in GenerateTab) | AGE-23 | `docs/feature-account-plan.md` | **Live** |
+| Citations (source tracking) | ✅ | ❌ | AGE-24 | `docs/feature-citations.md` | Backend only |
+| Memory / Knowledge Base | ✅ | ❌ | AGE-14/15/16/17 | `docs/feature-memory.md` | Backend only |
 
-**See `TODO.md` for full UI build-out roadmap.**
+**New GenerateTab (8th tab) consolidates all ideation and asset generation in a single blue-pill interface.**
 
 ---
 
@@ -336,18 +373,19 @@ GET    /api/ideation/plays/                 List plays
 GET    /api/ideation/plays/{id}/            Get play
 ```
 
-#### Assets (Backend only, zero UI)
+#### Assets (Now with UI in GenerateTab)
 ```
 POST   /api/assets/personas/generate/           Generate personas
-GET    /api/assets/personas/                    List personas
+GET    /api/assets/personas/?research_job=<id>  List personas for research job
 GET    /api/assets/personas/{id}/               Get persona
 
 POST   /api/assets/one-pagers/generate/        Generate one-pager
-GET    /api/assets/one-pagers/                 List one-pagers
+GET    /api/assets/one-pagers/?research_job=<id> List one-pagers for research job
 GET    /api/assets/one-pagers/{id}/            Get one-pager
 GET    /api/assets/one-pagers/{id}/html/       Get HTML version
 
 POST   /api/assets/account-plans/generate/     Generate account plan
+GET    /api/assets/account-plans/?research_job=<id> List account plans for research job
 GET    /api/assets/account-plans/{id}/         Get account plan
 GET    /api/assets/account-plans/{id}/html/    Get HTML version
 
@@ -516,7 +554,7 @@ npm run type-check
 ## Known Limitations
 
 1. **No authentication** — All endpoints accessible without auth
-2. **Ideation/Assets/Memory dark** — Backend complete but zero frontend UI (see `TODO.md`)
+2. **Memory/Citations dark** — Backend complete but zero frontend UI
 3. **Single Gemini model** — `gemini-2.0-flash` hardcoded; no model routing
 4. **No streaming** — All API calls synchronous; no WebSocket updates
 5. **ChromaDB in-memory by default** — Data lost on server restart unless persistence enabled
@@ -530,11 +568,12 @@ npm run type-check
 
 ## Roadmap
 
-**Priority 1: Complete UI for Backend-Complete Features**
-- [ ] Build ideation section (use cases, feasibility, plays)
-- [ ] Build assets section (personas, one-pagers, account plans)
-- [ ] Build memory browser (knowledge base, sales play library)
-- [ ] Wire StarButton to all asset cards
+**Priority 1: Complete UI for Remaining Backend Features**
+- [x] Build ideation section (use cases, feasibility, plays) — GenerateTab live
+- [x] Build assets section (personas, one-pagers, account plans) — GenerateTab live
+- [ ] Build memory browser (knowledge base, search, sales play library)
+- [ ] Build citations panel (source tracking)
+- [x] Wire StarOrSaveButton to all asset cards — Done
 
 **Priority 2: Production Readiness**
 - [ ] Add authentication and authorization
@@ -542,6 +581,7 @@ npm run type-check
 - [ ] Add error boundary components
 - [ ] Comprehensive error handling
 - [ ] Mobile/responsive optimization
+- [ ] Toast notification persistence/dismissal logic refinement
 
 **Priority 3: Performance & Scale**
 - [ ] Optimize GenericForeignKey queries
@@ -563,4 +603,26 @@ Proprietary — All rights reserved.
 
 ---
 
-**Last Updated:** 2026-03-10
+---
+
+## Recent Sprint Summary (2026-03-23)
+
+### Completed
+- **GenerateTab (8th tab)** — New blue-pill interface consolidating all ideation and asset generation
+  - UseCaseSection — Generate and list use cases
+  - PersonaSection — Generate and list buyer personas
+  - OnePagerSection — Generate and list one-pagers
+  - AccountPlanSection — Generate and list account plans
+- **Component Decomposition** — Fully modularized ResearchResults into tabs/ and generate/ subdirectories
+- **Toast Notification System** — Context-based toast for user feedback
+- **API Client Expansion** — All ideation/assets/memory methods wired in lib/api.ts
+- **Memory Deduplication** — Guards prevent duplicate MemoryEntry records
+- **WorkProduct Model Enhancement** — Support for standalone research jobs (nullable project, optional research_job FK)
+
+### In Progress
+- Refining GenerateTab UX and styling
+- Testing asset generation workflows end-to-end
+
+---
+
+**Last Updated:** 2026-03-23
