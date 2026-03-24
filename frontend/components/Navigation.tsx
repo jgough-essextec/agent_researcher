@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const version = process.env.NEXT_PUBLIC_VERSION;
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -50,6 +51,12 @@ export default function Navigation() {
                 {item.label}
               </Link>
             ))}
+            {version && (
+              <>
+                <div className="w-px h-4 bg-gray-200 mx-2" />
+                <span className="text-xs text-gray-400 font-mono">v{version}</span>
+              </>
+            )}
           </nav>
         </div>
       </div>

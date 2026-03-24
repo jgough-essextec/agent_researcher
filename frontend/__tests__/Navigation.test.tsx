@@ -40,6 +40,14 @@ describe('Navigation', () => {
     expect(researchLink.className).not.toContain('bg-blue-50');
   });
 
+  it('renders version badge when NEXT_PUBLIC_VERSION is set', () => {
+    vi.stubEnv('NEXT_PUBLIC_VERSION', '0.5.0');
+    mockUsePathname.mockReturnValue('/');
+    render(<Navigation />);
+    expect(screen.getByText('v0.5.0')).toBeTruthy();
+    vi.unstubAllEnvs();
+  });
+
   it('links to correct hrefs', () => {
     mockUsePathname.mockReturnValue('/');
     render(<Navigation />);

@@ -43,6 +43,15 @@ npm run test     # vitest
 npm run test:ui  # vitest with UI
 ```
 
+### One-time setup (run once after cloning)
+
+```bash
+chmod +x .githooks/pre-commit
+git config core.hooksPath .githooks
+```
+
+This activates the pre-commit hook that auto-bumps the minor version in `frontend/package.json` on every commit.
+
 ## Architecture
 
 ### Backend Django Apps
