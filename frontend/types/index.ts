@@ -220,6 +220,8 @@ export interface IterationListItem {
   name?: string;
   status: IterationStatus;
   has_research_job: boolean;
+  research_job_id?: string;
+  research_job_status?: IterationStatus;
   created_at: string;
 }
 
@@ -229,8 +231,6 @@ export interface Iteration extends IterationListItem {
   sales_history: string;
   prompt_override: string;
   inherited_context: Record<string, unknown>;
-  research_job_id?: string;
-  research_job_status?: IterationStatus;
   work_products: WorkProduct[];
 }
 
@@ -346,4 +346,142 @@ export interface ListDiff {
   added: string[];
   removed: string[];
   unchanged: string[];
+}
+
+// Ideation types (AGE-18, AGE-19, AGE-20)
+
+export type UseCasePriority = 'high' | 'medium' | 'low';
+export type UseCaseStatus = 'draft' | 'validated' | 'refined' | 'approved' | 'rejected';
+export type FeasibilityLevel = 'high' | 'medium' | 'low';
+export type PlayStatus = 'draft' | 'reviewed' | 'approved' | 'active' | 'archived';
+
+export interface UseCase {
+  id: string;
+  research_job: string;
+  title: string;
+  description: string;
+  business_problem: string;
+  proposed_solution: string;
+  expected_benefits: string[];
+  estimated_roi: string;
+  time_to_value: string;
+  technologies: string[];
+  data_requirements: string[];
+  integration_points: string[];
+  priority: UseCasePriority;
+  impact_score: number;
+  feasibility_score: number;
+  status: UseCaseStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FeasibilityAssessment {
+  id: string;
+  use_case: string;
+  overall_feasibility: FeasibilityLevel;
+  overall_score: number;
+  technical_complexity: string;
+  data_availability: string;
+  integration_complexity: string;
+  scalability_considerations: string;
+  technical_risks: string[];
+  mitigation_strategies: string[];
+  prerequisites: string[];
+  dependencies: string[];
+  recommendations: string[];
+  next_steps: string[];
+  created_at: string;
+}
+
+export interface RefinedPlay {
+  id: string;
+  use_case: string;
+  title: string;
+  elevator_pitch: string;
+  value_proposition: string;
+  key_differentiators: string[];
+  target_persona: string;
+  target_vertical: string;
+  company_size_fit: string;
+  discovery_questions: string[];
+  objection_handlers: string[];
+  proof_points: string[];
+  competitive_positioning: string;
+  next_steps: string[];
+  success_metrics: string[];
+  status: PlayStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+// Asset types (AGE-21, AGE-22, AGE-23)
+
+export type AssetStatus = 'draft' | 'reviewed' | 'approved' | 'shared';
+
+export interface Persona {
+  id: string;
+  research_job: string;
+  name: string;
+  title: string;
+  department: string;
+  seniority_level: string;
+  background: string;
+  goals: string[];
+  challenges: string[];
+  motivations: string[];
+  decision_criteria: string[];
+  preferred_communication: string[];
+  objections: string[];
+  content_preferences: string[];
+  key_messages: string[];
+  created_at: string;
+}
+
+export interface OnePager {
+  id: string;
+  research_job: string;
+  title: string;
+  headline: string;
+  executive_summary: string;
+  challenge_section: string;
+  solution_section: string;
+  benefits_section: string;
+  differentiators: string[];
+  call_to_action: string;
+  next_steps: string[];
+  html_content: string;
+  pdf_path: string;
+  status: AssetStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountPlan {
+  id: string;
+  research_job: string;
+  title: string;
+  executive_summary: string;
+  account_overview: string;
+  strategic_objectives: string[];
+  key_stakeholders: Record<string, unknown>[];
+  opportunities: Record<string, unknown>[];
+  competitive_landscape: string;
+  swot_analysis: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  engagement_strategy: string;
+  value_propositions: string[];
+  action_plan: Record<string, unknown>[];
+  success_metrics: string[];
+  milestones: Record<string, unknown>[];
+  timeline: Record<string, unknown>;
+  html_content: string;
+  pdf_path: string;
+  status: AssetStatus;
+  created_at: string;
+  updated_at: string;
 }

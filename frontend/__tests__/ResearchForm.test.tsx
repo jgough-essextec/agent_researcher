@@ -2,6 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ResearchForm from '@/components/ResearchForm';
 
+// Mock next/navigation (required for components calling useRouter)
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/',
+  useSearchParams: () => new URLSearchParams(),
+}));
+
 // Mock the api module
 vi.mock('@/lib/api', () => ({
   api: {
@@ -20,22 +27,19 @@ vi.mock('@/lib/api', () => ({
       error: '',
     }),
     pollResearch: vi.fn().mockImplementation((id, onUpdate) => {
-      onUpdate({
+      const completedJob = {
         id: '123',
         client_name: 'Test Corp',
         sales_history: '',
         status: 'completed',
         result: 'Research results',
         error: '',
-      });
-      return Promise.resolve({
-        id: '123',
-        client_name: 'Test Corp',
-        sales_history: '',
-        status: 'completed',
-        result: 'Research results',
-        error: '',
-      });
+      };
+      onUpdate(completedJob);
+      return {
+        promise: Promise.resolve(completedJob),
+        cancel: vi.fn(),
+      };
     }),
   },
 }));

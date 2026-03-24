@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Project, Iteration, WorkProduct, Annotation, IterationComparison, ResearchJob } from '@/types';
+import { Project, Iteration, IterationListItem, WorkProduct, Annotation, IterationComparison, ResearchJob, UseCase, Persona, OnePager, AccountPlan } from '@/types';
 import { api } from '@/lib/api';
 import {
   ProjectHeader,
@@ -30,7 +30,16 @@ export default function ProjectDashboardPage() {
   const [comparison, setComparison] = useState<IterationComparison | null>(null);
 
   // Sidebar state
-  const [sidebarTab, setSidebarTab] = useState<'saved' | 'notes'>('saved');
+  const [sidebarTab, setSidebarTab] = useState<'saved' | 'notes' | 'generated'>('saved');
+
+  // Generated assets state
+  const [generatedAssets, setGeneratedAssets] = useState<{
+    useCases: UseCase[];
+    personas: Persona[];
+    onePagers: OnePager[];
+    accountPlans: AccountPlan[];
+  }>({ useCases: [], personas: [], onePagers: [], accountPlans: [] });
+  const [loadingGenerated, setLoadingGenerated] = useState(false);
 
   const loadIteration = useCallback(async (sequence: number) => {
     try {
@@ -39,10 +48,14 @@ export default function ProjectDashboardPage() {
 
       // If running, poll for updates
       if (iteration.status === 'running') {
-        api.pollIteration(projectId, sequence, (updated) => {
+        const poller = api.pollIteration(projectId, sequence, (updated) => {
           setSelectedIteration(updated);
         });
+        poller.promise.catch(console.error);
+        // Return cancel so callers can clean up (best-effort; useCallback doesn't support cleanup directly)
+        return poller.cancel;
       }
+      return undefined;
     } catch (err) {
       console.error('Failed to load iteration:', err);
     }
@@ -84,6 +97,28 @@ export default function ProjectDashboardPage() {
       console.error('Failed to load annotations:', err);
     }
   }, [projectId]);
+
+  const loadGeneratedAssets = useCallback(async (iterations: IterationListItem[]) => {
+    const jobIds = iterations
+      .map((i) => i.research_job_id)
+      .filter((id): id is string => !!id);
+    if (jobIds.length === 0) return;
+
+    setLoadingGenerated(true);
+    try {
+      const [useCases, personas, onePagers, accountPlans] = await Promise.all([
+        Promise.all(jobIds.map((id) => api.listUseCases(id))).then((r) => r.flat()),
+        Promise.all(jobIds.map((id) => api.listPersonas(id))).then((r) => r.flat()),
+        Promise.all(jobIds.map((id) => api.listOnePagers(id))).then((r) => r.flat()),
+        Promise.all(jobIds.map((id) => api.listAccountPlans(id))).then((r) => r.flat()),
+      ]);
+      setGeneratedAssets({ useCases, personas, onePagers, accountPlans });
+    } catch (err) {
+      console.error('Failed to load generated assets:', err);
+    } finally {
+      setLoadingGenerated(false);
+    }
+  }, []);
 
   const handleStartIteration = async () => {
     if (!selectedIteration) return;
@@ -232,11 +267,52 @@ export default function ProjectDashboardPage() {
                 </div>
               </div>
 
+              {/* Next Steps CTA — shown when research is completed */}
+              {selectedIteration.research_job_status === 'completed' && (
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-3">Research complete — what&apos;s next?</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      href={`/research/${selectedIteration.research_job_id}#generate`}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                    >
+                      Generate Use Cases
+                    </Link>
+                    <Link
+                      href={`/research/${selectedIteration.research_job_id}#generate`}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                    >
+                      Build Personas
+                    </Link>
+                    <Link
+                      href={`/research/${selectedIteration.research_job_id}#generate`}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                    >
+                      Create One-Pager
+                    </Link>
+                    <Link
+                      href={`/research/${selectedIteration.research_job_id}#generate`}
+                      className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-white border border-blue-200 rounded-md hover:bg-blue-50 transition-colors"
+                    >
+                      Account Plan
+                    </Link>
+                    <Link
+                      href={`/projects/${projectId}/iterate`}
+                      className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-md hover:bg-gray-50 transition-colors"
+                    >
+                      + New Research Round
+                    </Link>
+                  </div>
+                </div>
+              )}
+
               {/* Research results */}
               {selectedIteration.research_job_id ? (
                 <ResearchResultsWrapper
                   researchJobId={selectedIteration.research_job_id}
                   status={selectedIteration.research_job_status || selectedIteration.status}
+                  projectId={projectId}
+                  iterationId={selectedIteration.id}
                 />
               ) : (
                 <div className="bg-gray-50 rounded-lg p-8 text-center">
@@ -257,7 +333,7 @@ export default function ProjectDashboardPage() {
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setSidebarTab('saved')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarTab === 'saved'
                   ? 'bg-white border-b-2 border-blue-500 text-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
@@ -267,13 +343,26 @@ export default function ProjectDashboardPage() {
             </button>
             <button
               onClick={() => setSidebarTab('notes')}
-              className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
                 sidebarTab === 'notes'
                   ? 'bg-white border-b-2 border-blue-500 text-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               Notes ({annotations.length})
+            </button>
+            <button
+              onClick={() => {
+                setSidebarTab('generated');
+                if (project) loadGeneratedAssets(project.iterations);
+              }}
+              className={`flex-1 px-3 py-3 text-xs font-medium transition-colors ${
+                sidebarTab === 'generated'
+                  ? 'bg-white border-b-2 border-blue-500 text-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Generated
             </button>
           </div>
 
@@ -285,11 +374,16 @@ export default function ProjectDashboardPage() {
                 workProducts={workProducts}
                 onUpdate={loadWorkProducts}
               />
-            ) : (
+            ) : sidebarTab === 'notes' ? (
               <AnnotationPanel
                 projectId={projectId}
                 annotations={annotations}
                 onUpdate={loadAnnotations}
+              />
+            ) : (
+              <GeneratedAssetsPanel
+                assets={generatedAssets}
+                loading={loadingGenerated}
               />
             )}
           </div>
@@ -314,9 +408,13 @@ export default function ProjectDashboardPage() {
 function ResearchResultsWrapper({
   researchJobId,
   status,
+  projectId,
+  iterationId,
 }: {
   researchJobId: string;
   status: string;
+  projectId: string;
+  iterationId: string;
 }) {
   const [job, setJob] = useState<ResearchJob | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -337,9 +435,10 @@ function ResearchResultsWrapper({
 
     // Poll if running
     if (status === 'running') {
-      api.pollResearch(researchJobId, (updated) => {
+      const poller = api.pollResearch(researchJobId, (updated) => {
         setJob(updated);
       });
+      poller.promise.catch(console.error);
     }
   }, [researchJobId, status]);
 
@@ -359,5 +458,78 @@ function ResearchResultsWrapper({
     );
   }
 
-  return <ResearchResults job={job} />;
+  return <ResearchResults job={job} projectId={projectId} iterationId={iterationId} />;
+}
+
+// Panel showing all generated assets across project iterations
+function GeneratedAssetsPanel({
+  assets,
+  loading,
+}: {
+  assets: { useCases: UseCase[]; personas: Persona[]; onePagers: OnePager[]; accountPlans: AccountPlan[] };
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500" />
+      </div>
+    );
+  }
+
+  const total = assets.useCases.length + assets.personas.length + assets.onePagers.length + assets.accountPlans.length;
+
+  if (total === 0) {
+    return (
+      <div className="p-4 text-center text-sm text-gray-500">
+        <p>No generated assets yet.</p>
+        <p className="mt-1 text-xs text-gray-400">Use the Generate tab in research results to create use cases, personas, and more.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-gray-100">
+      {assets.useCases.length > 0 && (
+        <div className="p-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Use Cases ({assets.useCases.length})</p>
+          <ul className="space-y-1">
+            {assets.useCases.map((uc) => (
+              <li key={uc.id} className="text-xs text-gray-800 truncate" title={uc.title}>{uc.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {assets.personas.length > 0 && (
+        <div className="p-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Personas ({assets.personas.length})</p>
+          <ul className="space-y-1">
+            {assets.personas.map((p) => (
+              <li key={p.id} className="text-xs text-gray-800 truncate" title={p.title}>{p.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {assets.onePagers.length > 0 && (
+        <div className="p-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">One-Pagers ({assets.onePagers.length})</p>
+          <ul className="space-y-1">
+            {assets.onePagers.map((op) => (
+              <li key={op.id} className="text-xs text-gray-800 truncate" title={op.title}>{op.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {assets.accountPlans.length > 0 && (
+        <div className="p-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Account Plans ({assets.accountPlans.length})</p>
+          <ul className="space-y-1">
+            {assets.accountPlans.map((ap) => (
+              <li key={ap.id} className="text-xs text-gray-800 truncate" title={ap.title}>{ap.title}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }

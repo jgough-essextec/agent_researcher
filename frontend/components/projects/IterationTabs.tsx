@@ -44,6 +44,14 @@ export default function IterationTabs({
                 className={`w-2 h-2 rounded-full ${statusIndicators[iteration.status]}`}
               />
               <span>{iteration.name || `Iteration ${iteration.sequence}`}</span>
+              {iteration.research_job_status === 'completed' && (
+                <span
+                  className="inline-flex items-center justify-center w-4 h-4 text-[9px] font-bold rounded-full bg-blue-100 text-blue-600"
+                  title="Research complete — assets available"
+                >
+                  ✓
+                </span>
+              )}
             </button>
           ))}
         </div>

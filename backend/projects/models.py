@@ -122,6 +122,16 @@ class WorkProduct(models.Model):
     project = models.ForeignKey(
         Project,
         on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='work_products',
+    )
+    # Anchor for standalone research jobs not associated with a project
+    research_job = models.ForeignKey(
+        'research.ResearchJob',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
         related_name='work_products',
     )
 
@@ -150,6 +160,12 @@ class WorkProduct(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(project__isnull=False) | models.Q(research_job__isnull=False),
+                name='workproduct_has_project_or_research_job',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.category}: {self.content_object}"

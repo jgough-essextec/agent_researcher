@@ -76,17 +76,30 @@ class IterationListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for listing iterations."""
 
     has_research_job = serializers.SerializerMethodField()
+    research_job_id = serializers.SerializerMethodField()
+    research_job_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Iteration
         fields = [
             'id', 'sequence', 'name', 'status',
-            'has_research_job', 'created_at'
+            'has_research_job', 'research_job_id', 'research_job_status',
+            'created_at'
         ]
         read_only_fields = ['id', 'sequence', 'created_at']
 
     def get_has_research_job(self, obj):
         return hasattr(obj, 'research_job') and obj.research_job is not None
+
+    def get_research_job_id(self, obj):
+        if hasattr(obj, 'research_job') and obj.research_job is not None:
+            return str(obj.research_job.id)
+        return None
+
+    def get_research_job_status(self, obj):
+        if hasattr(obj, 'research_job') and obj.research_job is not None:
+            return obj.research_job.status
+        return None
 
 
 class IterationDetailSerializer(serializers.ModelSerializer):

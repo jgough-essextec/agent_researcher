@@ -168,6 +168,19 @@ class OnePagerHtmlView(APIView):
         return HttpResponse(one_pager.html_content, content_type='text/html')
 
 
+class AccountPlanListView(generics.ListAPIView):
+    """List account plans, optionally filtered by research job."""
+
+    serializer_class = AccountPlanSerializer
+
+    def get_queryset(self):
+        queryset = AccountPlan.objects.all()
+        research_job_id = self.request.query_params.get('research_job')
+        if research_job_id:
+            queryset = queryset.filter(research_job_id=research_job_id)
+        return queryset
+
+
 class AccountPlanDetailView(generics.RetrieveUpdateDestroyAPIView):
     """Retrieve, update, or delete an account plan."""
 
@@ -204,6 +217,12 @@ class GenerateAccountPlanView(APIView):
                 {'error': 'Research job is not completed'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Return existing plan if already generated (avoid wasted Gemini call)
+        existing = AccountPlan.objects.filter(research_job=job).first()
+        if existing:
+            output_serializer = AccountPlanSerializer(existing)
+            return Response(output_serializer.data, status=status.HTTP_200_OK)
 
         # Generate account plan
         generator = AccountPlanGenerator()

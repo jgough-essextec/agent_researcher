@@ -133,6 +133,14 @@ class MemoryCapture:
         # Capture talking points as best practices
         if report.talking_points:
             for i, point in enumerate(report.talking_points[:3]):
+                # Skip if already captured from this research job
+                if MemoryEntry.objects.filter(
+                    source_type='research_job',
+                    source_id=str(research_job.id),
+                    entry_type='best_practice',
+                    content=point,
+                ).exists():
+                    continue
                 entry = MemoryEntry.objects.create(
                     entry_type='best_practice',
                     title=f"Talking point for {research_job.client_name}",
@@ -163,6 +171,14 @@ class MemoryCapture:
         # Capture opportunities as research insights
         if report.opportunities:
             for opportunity in report.opportunities[:2]:
+                # Skip if already captured from this research job
+                if MemoryEntry.objects.filter(
+                    source_type='research_job',
+                    source_id=str(research_job.id),
+                    entry_type='research_insight',
+                    content=opportunity,
+                ).exists():
+                    continue
                 entry = MemoryEntry.objects.create(
                     entry_type='research_insight',
                     title=f"Opportunity at {research_job.client_name}",

@@ -19,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 import Navigation from "@/components/Navigation";
+import Providers from "./Providers";
 
 export default function RootLayout({
   children,
@@ -30,10 +31,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50`}
       >
-        <Navigation />
-        <main className="max-w-6xl mx-auto px-4 py-8">
-          {children}
-        </main>
+        <Providers>
+          <Navigation />
+          <main className="max-w-6xl mx-auto px-4 py-8">
+            {children}
+          </main>
+        </Providers>
       </body>
     </html>
   );

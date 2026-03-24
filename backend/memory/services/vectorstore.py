@@ -211,6 +211,5 @@ class VectorStore:
         return collection.count()
 
     def persist(self):
-        """Persist the database to disk."""
-        self.client.persist()
-        logger.info("Persisted ChromaDB to disk")
+        """No-op: PersistentClient auto-persists on write."""
+        logger.debug("persist() called — PersistentClient auto-persists, no action needed")

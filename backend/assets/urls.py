@@ -15,6 +15,7 @@ urlpatterns = [
     path('one-pagers/<uuid:pk>/html/', views.OnePagerHtmlView.as_view(), name='one-pager-html'),
 
     # Account plans
+    path('account-plans/', views.AccountPlanListView.as_view(), name='account-plan-list'),
     path('account-plans/generate/', views.GenerateAccountPlanView.as_view(), name='account-plan-generate'),
     path('account-plans/<uuid:pk>/', views.AccountPlanDetailView.as_view(), name='account-plan-detail'),
     path('account-plans/<uuid:pk>/html/', views.AccountPlanHtmlView.as_view(), name='account-plan-html'),

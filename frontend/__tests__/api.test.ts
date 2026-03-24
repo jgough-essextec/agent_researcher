@@ -151,4 +151,115 @@ describe('API Client', () => {
       expect(result).toEqual(mockResponse);
     });
   });
+
+  describe('listAccountPlans', () => {
+    it('sends GET request with research_job filter', async () => {
+      const mockPlans = [{ id: 'ap-1', title: 'Plan A' }];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockPlans),
+      });
+
+      const result = await api.listAccountPlans('job-123');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/assets/account-plans/?research_job=job-123',
+        expect.objectContaining({ headers: { 'Content-Type': 'application/json' } })
+      );
+      expect(result).toEqual(mockPlans);
+    });
+
+    it('throws error when request fails', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: () => Promise.resolve({ detail: 'Server error' }),
+      });
+
+      await expect(api.listAccountPlans('job-123')).rejects.toThrow('Server error');
+    });
+  });
+
+  describe('generateAccountPlan', () => {
+    it('sends POST request with research_job_id', async () => {
+      const mockPlan = { id: 'ap-1', title: 'Generated Plan' };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockPlan),
+      });
+
+      const result = await api.generateAccountPlan('job-456');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/assets/account-plans/generate/',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ research_job_id: 'job-456' }),
+        })
+      );
+      expect(result).toEqual(mockPlan);
+    });
+  });
+
+  describe('listPersonas', () => {
+    it('sends GET request with research_job filter', async () => {
+      const mockPersonas = [{ id: 'p-1', name: 'Alice' }];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockPersonas),
+      });
+
+      const result = await api.listPersonas('job-789');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/assets/personas/?research_job=job-789',
+        expect.objectContaining({ headers: { 'Content-Type': 'application/json' } })
+      );
+      expect(result).toEqual(mockPersonas);
+    });
+  });
+
+  describe('listOnePagers', () => {
+    it('sends GET request with research_job filter', async () => {
+      const mockPagers = [{ id: 'op-1', title: 'One Pager' }];
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockPagers),
+      });
+
+      const result = await api.listOnePagers('job-abc');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/assets/one-pagers/?research_job=job-abc',
+        expect.objectContaining({ headers: { 'Content-Type': 'application/json' } })
+      );
+      expect(result).toEqual(mockPagers);
+    });
+  });
+
+  describe('captureToMemory', () => {
+    it('sends POST request to capture endpoint', async () => {
+      const mockResponse = { client_profile_created: true, memory_entries_created: 3 };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(mockResponse),
+      });
+
+      const result = await api.captureToMemory('job-mem-111');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8000/api/memory/capture/job-mem-111/',
+        expect.objectContaining({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      expect(result).toEqual(mockResponse);
+    });
+  });
 });

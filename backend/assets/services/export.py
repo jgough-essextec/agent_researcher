@@ -193,26 +193,27 @@ class ExportService:
         Returns:
             HTML string
         """
-        differentiators_html = '\n'.join([f'<li>{d}</li>' for d in (one_pager.differentiators or [])])
-        next_steps_html = '\n'.join([f'<li>{s}</li>' for s in (one_pager.next_steps or [])])
+        e = html.escape
+        differentiators_html = '\n'.join([f'<li>{e(d)}</li>' for d in (one_pager.differentiators or [])])
+        next_steps_html = '\n'.join([f'<li>{e(s)}</li>' for s in (one_pager.next_steps or [])])
 
-        html = self.ONE_PAGER_TEMPLATE.format(
-            title=one_pager.title,
-            headline=one_pager.headline,
-            executive_summary=one_pager.executive_summary,
-            challenge_section=one_pager.challenge_section,
-            solution_section=one_pager.solution_section,
-            benefits_section=one_pager.benefits_section,
+        result_html = self.ONE_PAGER_TEMPLATE.format(
+            title=e(one_pager.title or ''),
+            headline=e(one_pager.headline or ''),
+            executive_summary=e(one_pager.executive_summary or ''),
+            challenge_section=e(one_pager.challenge_section or ''),
+            solution_section=e(one_pager.solution_section or ''),
+            benefits_section=e(one_pager.benefits_section or ''),
             differentiators_html=differentiators_html,
-            call_to_action=one_pager.call_to_action,
+            call_to_action=e(one_pager.call_to_action or ''),
             next_steps_html=next_steps_html,
         )
 
         # Save HTML to model
-        one_pager.html_content = html
+        one_pager.html_content = result_html
         one_pager.save(update_fields=['html_content'])
 
-        return html
+        return result_html
 
     def generate_account_plan_html(self, account_plan) -> str:
         """Generate HTML for an account plan.
@@ -223,13 +224,15 @@ class ExportService:
         Returns:
             HTML string
         """
+        e = html.escape
+
         # Strategic objectives
-        strategic_objectives_html = '\n'.join([f'<li>{o}</li>' for o in (account_plan.strategic_objectives or [])])
+        strategic_objectives_html = '\n'.join([f'<li>{e(o)}</li>' for o in (account_plan.strategic_objectives or [])])
 
         # Stakeholders table
         stakeholders = account_plan.key_stakeholders or []
         stakeholders_rows = '\n'.join([
-            f"<tr><td>{s.get('name', '')}</td><td>{s.get('title', '')}</td><td>{s.get('role_in_decision', '')}</td><td>{s.get('engagement_approach', '')}</td></tr>"
+            f"<tr><td>{e(s.get('name', ''))}</td><td>{e(s.get('title', ''))}</td><td>{e(s.get('role_in_decision', ''))}</td><td>{e(s.get('engagement_approach', ''))}</td></tr>"
             for s in stakeholders
         ])
         stakeholders_table = f'''
@@ -242,7 +245,7 @@ class ExportService:
         # Opportunities table
         opportunities = account_plan.opportunities or []
         opportunities_rows = '\n'.join([
-            f"<tr><td>{o.get('name', '')}</td><td>{o.get('value', '')}</td><td>{o.get('timeline', '')}</td><td>{o.get('probability', '')}</td></tr>"
+            f"<tr><td>{e(o.get('name', ''))}</td><td>{e(o.get('value', ''))}</td><td>{e(o.get('timeline', ''))}</td><td>{e(o.get('probability', ''))}</td></tr>"
             for o in opportunities
         ])
         opportunities_table = f'''
@@ -254,15 +257,15 @@ class ExportService:
 
         # SWOT
         swot = account_plan.swot_analysis or {}
-        swot_strengths = '\n'.join([f'<li>{s}</li>' for s in swot.get('strengths', [])])
-        swot_weaknesses = '\n'.join([f'<li>{w}</li>' for w in swot.get('weaknesses', [])])
-        swot_opportunities = '\n'.join([f'<li>{o}</li>' for o in swot.get('opportunities', [])])
-        swot_threats = '\n'.join([f'<li>{t}</li>' for t in swot.get('threats', [])])
+        swot_strengths = '\n'.join([f'<li>{e(s)}</li>' for s in swot.get('strengths', [])])
+        swot_weaknesses = '\n'.join([f'<li>{e(w)}</li>' for w in swot.get('weaknesses', [])])
+        swot_opportunities = '\n'.join([f'<li>{e(o)}</li>' for o in swot.get('opportunities', [])])
+        swot_threats = '\n'.join([f'<li>{e(t)}</li>' for t in swot.get('threats', [])])
 
         # Action plan table
         actions = account_plan.action_plan or []
         action_rows = '\n'.join([
-            f"<tr><td>{a.get('action', '')}</td><td>{a.get('owner', '')}</td><td>{a.get('due_date', '')}</td><td>{a.get('status', '')}</td></tr>"
+            f"<tr><td>{e(a.get('action', ''))}</td><td>{e(a.get('owner', ''))}</td><td>{e(a.get('due_date', ''))}</td><td>{e(a.get('status', ''))}</td></tr>"
             for a in actions
         ])
         action_plan_table = f'''
@@ -273,12 +276,12 @@ class ExportService:
         ''' if action_rows else '<p>No actions defined</p>'
 
         # Success metrics
-        success_metrics_html = '\n'.join([f'<li>{m}</li>' for m in (account_plan.success_metrics or [])])
+        success_metrics_html = '\n'.join([f'<li>{e(m)}</li>' for m in (account_plan.success_metrics or [])])
 
-        html = self.ACCOUNT_PLAN_TEMPLATE.format(
-            title=account_plan.title,
-            executive_summary=account_plan.executive_summary,
-            account_overview=account_plan.account_overview,
+        result_html = self.ACCOUNT_PLAN_TEMPLATE.format(
+            title=e(account_plan.title or ''),
+            executive_summary=e(account_plan.executive_summary or ''),
+            account_overview=e(account_plan.account_overview or ''),
             strategic_objectives_html=strategic_objectives_html,
             stakeholders_table=stakeholders_table,
             opportunities_table=opportunities_table,
@@ -286,17 +289,17 @@ class ExportService:
             swot_weaknesses=swot_weaknesses,
             swot_opportunities=swot_opportunities,
             swot_threats=swot_threats,
-            engagement_strategy=account_plan.engagement_strategy,
+            engagement_strategy=e(account_plan.engagement_strategy or ''),
             action_plan_table=action_plan_table,
             success_metrics_html=success_metrics_html,
-            timeline=account_plan.timeline,
+            timeline=e(account_plan.timeline or ''),
         )
 
         # Save HTML to model
-        account_plan.html_content = html
+        account_plan.html_content = result_html
         account_plan.save(update_fields=['html_content'])
 
-        return html
+        return result_html
 
     def export_to_pdf(self, html_content: str, output_filename: str) -> Optional[str]:
         """Export HTML to PDF using weasyprint.

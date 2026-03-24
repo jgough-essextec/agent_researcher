@@ -163,7 +163,7 @@ describe('ResearchResults — tab visibility', () => {
 
   it('shows intel tab when internal_ops present', () => {
     render(<ResearchResults job={completedJob} />);
-    expect(screen.getByRole('button', { name: 'Inside Intel' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Org Signals' })).toBeInTheDocument();
   });
 
   it('shows sources tab when web_sources present', () => {
@@ -248,13 +248,13 @@ describe('ResearchResults — Gap Analysis tab', () => {
 
 
 // ---------------------------------------------------------------------------
-// Inside Intel tab rendering
+// Org Signals tab rendering
 // ---------------------------------------------------------------------------
 
-describe('ResearchResults — Inside Intel tab', () => {
+describe('ResearchResults — Org Signals tab', () => {
   function renderIntelTab() {
     render(<ResearchResults job={completedJob} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Inside Intel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Org Signals' }));
   }
 
   it('renders employee sentiment section', () => {
@@ -296,13 +296,13 @@ describe('ResearchResults — Inside Intel tab', () => {
 
 
 // ---------------------------------------------------------------------------
-// Deep Research tab — enriched fields
+// Full Report tab — enriched fields
 // ---------------------------------------------------------------------------
 
-describe('ResearchResults — Deep Research tab', () => {
+describe('ResearchResults — Full Report tab', () => {
   function renderReportTab() {
     render(<ResearchResults job={completedJob} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Deep Research' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Full Report' }));
   }
 
   it('renders cloud footprint section', () => {
@@ -418,10 +418,10 @@ describe('ResearchResults — Gap Analysis tab parsing failure', () => {
 // ---------------------------------------------------------------------------
 
 describe('ResearchResults — loading and error states', () => {
-  it('shows spinner when status is running', () => {
+  it('shows animation when status is running', () => {
     const job: ResearchJob = { ...completedJob, status: 'running' };
     render(<ResearchResults job={job} />);
-    expect(screen.getByText('Researching...')).toBeInTheDocument();
+    expect(screen.getByTestId('research-animation')).toBeInTheDocument();
   });
 
   it('shows error message when status is failed', () => {

@@ -11,6 +11,12 @@ import {
   Annotation,
   TimelineData,
   IterationComparison,
+  UseCase,
+  FeasibilityAssessment,
+  RefinedPlay,
+  Persona,
+  OnePager,
+  AccountPlan,
 } from '@/types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -102,28 +108,48 @@ class ApiClient {
     window.URL.revokeObjectURL(downloadUrl);
   }
 
-  async pollResearch(
+  pollResearch(
     id: string,
     onUpdate: (job: ResearchJob) => void,
     intervalMs: number = 2000
-  ): Promise<ResearchJob> {
-    return new Promise((resolve, reject) => {
+  ): { promise: Promise<ResearchJob>; cancel: () => void } {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const MAX_POLLS = 150; // 5 minutes at 2s intervals
+    let pollCount = 0;
+
+    const promise = new Promise<ResearchJob>((resolve, reject) => {
       const poll = async () => {
+        if (cancelled) return;
+        pollCount++;
+        if (pollCount > MAX_POLLS) {
+          reject(new Error('Research polling timed out after 5 minutes'));
+          return;
+        }
         try {
           const job = await this.getResearch(id);
+          if (cancelled) return;
           onUpdate(job);
 
           if (job.status === 'completed' || job.status === 'failed') {
             resolve(job);
           } else {
-            setTimeout(poll, intervalMs);
+            const delay = pollCount > 10 ? Math.min(intervalMs * 2, 8000) : intervalMs;
+            timeoutId = setTimeout(poll, delay);
           }
         } catch (error) {
-          reject(error);
+          if (!cancelled) reject(error);
         }
       };
       poll();
     });
+
+    const cancel = () => {
+      cancelled = true;
+      if (timeoutId !== null) clearTimeout(timeoutId);
+    };
+
+    return { promise, cancel };
   }
 
   // Prompt endpoints
@@ -189,29 +215,49 @@ class ApiClient {
     });
   }
 
-  async pollIteration(
+  pollIteration(
     projectId: string,
     sequence: number,
     onUpdate: (iteration: Iteration) => void,
     intervalMs: number = 2000
-  ): Promise<Iteration> {
-    return new Promise((resolve, reject) => {
+  ): { promise: Promise<Iteration>; cancel: () => void } {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const MAX_POLLS = 150;
+    let pollCount = 0;
+
+    const promise = new Promise<Iteration>((resolve, reject) => {
       const poll = async () => {
+        if (cancelled) return;
+        pollCount++;
+        if (pollCount > MAX_POLLS) {
+          reject(new Error('Iteration polling timed out after 5 minutes'));
+          return;
+        }
         try {
           const iteration = await this.getIteration(projectId, sequence);
+          if (cancelled) return;
           onUpdate(iteration);
 
           if (iteration.status === 'completed' || iteration.status === 'failed') {
             resolve(iteration);
           } else {
-            setTimeout(poll, intervalMs);
+            const delay = pollCount > 10 ? Math.min(intervalMs * 2, 8000) : intervalMs;
+            timeoutId = setTimeout(poll, delay);
           }
         } catch (error) {
-          reject(error);
+          if (!cancelled) reject(error);
         }
       };
       poll();
     });
+
+    const cancel = () => {
+      cancelled = true;
+      if (timeoutId !== null) clearTimeout(timeoutId);
+    };
+
+    return { promise, cancel };
   }
 
   // Timeline and comparison
@@ -280,6 +326,110 @@ class ApiClient {
   async deleteAnnotation(projectId: string, id: string): Promise<void> {
     await this.request(`/api/projects/${projectId}/annotations/${id}/`, {
       method: 'DELETE',
+    });
+  }
+
+  // Ideation endpoints (AGE-18, AGE-19, AGE-20)
+
+  async generateUseCases(researchJobId: string): Promise<UseCase[]> {
+    return this.request<UseCase[]>('/api/ideation/use-cases/generate/', {
+      method: 'POST',
+      body: JSON.stringify({ research_job_id: researchJobId }),
+    });
+  }
+
+  async listUseCases(researchJobId: string): Promise<UseCase[]> {
+    return this.request<UseCase[]>(`/api/ideation/use-cases/?research_job=${researchJobId}`);
+  }
+
+  async getUseCase(id: string): Promise<UseCase> {
+    return this.request<UseCase>(`/api/ideation/use-cases/${id}/`);
+  }
+
+  async assessFeasibility(useCaseId: string): Promise<FeasibilityAssessment> {
+    return this.request<FeasibilityAssessment>(`/api/ideation/use-cases/${useCaseId}/assess/`, {
+      method: 'POST',
+    });
+  }
+
+  async refinePlay(useCaseId: string): Promise<RefinedPlay> {
+    return this.request<RefinedPlay>(`/api/ideation/use-cases/${useCaseId}/refine/`, {
+      method: 'POST',
+    });
+  }
+
+  async getPlay(id: string): Promise<RefinedPlay> {
+    return this.request<RefinedPlay>(`/api/ideation/plays/${id}/`);
+  }
+
+  // Asset endpoints (AGE-21, AGE-22, AGE-23)
+
+  async generatePersonas(researchJobId: string): Promise<Persona[]> {
+    return this.request<Persona[]>('/api/assets/personas/generate/', {
+      method: 'POST',
+      body: JSON.stringify({ research_job_id: researchJobId }),
+    });
+  }
+
+  async listPersonas(researchJobId: string): Promise<Persona[]> {
+    return this.request<Persona[]>(`/api/assets/personas/?research_job=${researchJobId}`);
+  }
+
+  async getPersona(id: string): Promise<Persona> {
+    return this.request<Persona>(`/api/assets/personas/${id}/`);
+  }
+
+  async generateOnePager(researchJobId: string, useCaseId?: string): Promise<OnePager> {
+    const body: Record<string, string> = { research_job_id: researchJobId };
+    if (useCaseId) body.use_case_id = useCaseId;
+    return this.request<OnePager>('/api/assets/one-pagers/generate/', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async listOnePagers(researchJobId: string): Promise<OnePager[]> {
+    return this.request<OnePager[]>(`/api/assets/one-pagers/?research_job=${researchJobId}`);
+  }
+
+  async getOnePager(id: string): Promise<OnePager> {
+    return this.request<OnePager>(`/api/assets/one-pagers/${id}/`);
+  }
+
+  async getOnePagerHtml(id: string): Promise<string> {
+    const url = `${this.baseUrl}/api/assets/one-pagers/${id}/html/`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch one-pager HTML: ${response.status}`);
+    return response.text();
+  }
+
+  async generateAccountPlan(researchJobId: string): Promise<AccountPlan> {
+    return this.request<AccountPlan>('/api/assets/account-plans/generate/', {
+      method: 'POST',
+      body: JSON.stringify({ research_job_id: researchJobId }),
+    });
+  }
+
+  async listAccountPlans(researchJobId: string): Promise<AccountPlan[]> {
+    return this.request<AccountPlan[]>(`/api/assets/account-plans/?research_job=${researchJobId}`);
+  }
+
+  async getAccountPlan(id: string): Promise<AccountPlan> {
+    return this.request<AccountPlan>(`/api/assets/account-plans/${id}/`);
+  }
+
+  async getAccountPlanHtml(id: string): Promise<string> {
+    const url = `${this.baseUrl}/api/assets/account-plans/${id}/html/`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch account plan HTML: ${response.status}`);
+    return response.text();
+  }
+
+  // Memory endpoints
+
+  async captureToMemory(jobId: string): Promise<{ client_profile_created: boolean; memory_entries_created: number }> {
+    return this.request(`/api/memory/capture/${jobId}/`, {
+      method: 'POST',
     });
   }
 }

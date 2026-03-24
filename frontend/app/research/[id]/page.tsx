@@ -17,6 +17,8 @@ export default function ResearchDetailPage() {
   useEffect(() => {
     if (!id) return;
 
+    let cancelPoll: (() => void) | null = null;
+
     const loadJob = async () => {
       try {
         const data = await api.getResearch(id);
@@ -25,9 +27,11 @@ export default function ResearchDetailPage() {
 
         // If still running, poll for updates
         if (data.status === 'running' || data.status === 'pending') {
-          api.pollResearch(id, (updated) => {
+          const poller = api.pollResearch(id, (updated) => {
             setJob(updated);
           });
+          cancelPoll = poller.cancel;
+          poller.promise.catch(console.error);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load research');
@@ -36,6 +40,10 @@ export default function ResearchDetailPage() {
     };
 
     loadJob();
+
+    return () => {
+      if (cancelPoll) cancelPoll();
+    };
   }, [id]);
 
   if (loading) {
