@@ -414,6 +414,41 @@ describe('ResearchResults — Gap Analysis tab parsing failure', () => {
 
 
 // ---------------------------------------------------------------------------
+// Full Report tab — tech_partnerships as objects (crash regression)
+// ---------------------------------------------------------------------------
+
+describe('ResearchResults — Full Report tab tech_partnerships object regression', () => {
+  it('renders Full Report tab without crashing when tech_partnerships are objects', () => {
+    const reportWithObjectPartners = {
+      ...baseReport,
+      tech_partnerships: [
+        { vendor: 'Microsoft', relationship_type: 'Azure Strategic Partner', competitive_threat: 'No' },
+        { vendor: 'Publicis Sapient', relationship_type: 'Co-development partner', competitive_threat: 'No' },
+      ] as unknown as string[],
+    };
+    const job = { ...completedJob, report: reportWithObjectPartners };
+    expect(() => {
+      render(<ResearchResults job={job} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Full Report' }));
+    }).not.toThrow();
+  });
+
+  it('displays flattened vendor — relationship_type text for object tech_partnerships', () => {
+    const reportWithObjectPartners = {
+      ...baseReport,
+      tech_partnerships: [
+        { vendor: 'Microsoft', relationship_type: 'Azure Strategic Partner', competitive_threat: 'No' },
+      ] as unknown as string[],
+    };
+    const job = { ...completedJob, report: reportWithObjectPartners };
+    render(<ResearchResults job={job} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Full Report' }));
+    expect(screen.getByText('Microsoft — Azure Strategic Partner')).toBeInTheDocument();
+  });
+});
+
+
+// ---------------------------------------------------------------------------
 // Running / failed states
 // ---------------------------------------------------------------------------
 

@@ -44,7 +44,7 @@ export interface ResearchReport {
   security_posture?: string;
   data_maturity?: string;
   financial_signals?: string[];
-  tech_partnerships?: string[];
+  tech_partnerships?: (string | Record<string, string>)[];
   web_sources?: WebSource[];
   created_at: string;
   updated_at: string;

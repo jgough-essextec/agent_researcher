@@ -3,6 +3,19 @@ import MarkdownText from '../shared/MarkdownText';
 import Section from '../shared/Section';
 import DetailRow from '../shared/DetailRow';
 
+/** Gemini may return tech_partnerships as objects {vendor, relationship_type, competitive_threat}
+ *  instead of flat strings. Normalize either shape to a display string. */
+function normalizePartner(partner: unknown): string {
+  if (typeof partner === 'string') return partner;
+  if (partner && typeof partner === 'object') {
+    const p = partner as Record<string, string>;
+    const parts = [p.vendor, p.relationship_type].filter(Boolean);
+    if (parts.length) return parts.join(' — ');
+    return JSON.stringify(partner);
+  }
+  return String(partner);
+}
+
 export default function ReportTab({ report, sources = [] }: { report: ResearchReport; sources?: WebSource[] }) {
   return (
     <div className="space-y-6">
@@ -139,7 +152,7 @@ export default function ReportTab({ report, sources = [] }: { report: ResearchRe
                 <div className="flex flex-wrap gap-1">
                   {report.tech_partnerships.map((partner, i) => (
                     <span key={i} className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded">
-                      {partner}
+                      {normalizePartner(partner)}
                     </span>
                   ))}
                 </div>
