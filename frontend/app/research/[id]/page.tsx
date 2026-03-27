@@ -25,7 +25,7 @@ export default function ResearchDetailPage() {
         setJob(data);
         setLoading(false);
 
-        // If still running, poll for updates
+        // If still running, poll for updates (partial/completed/failed are terminal — no poll)
         if (data.status === 'running' || data.status === 'pending') {
           const poller = api.pollResearch(id, (updated) => {
             setJob(updated);

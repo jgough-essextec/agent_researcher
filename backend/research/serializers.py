@@ -44,6 +44,7 @@ class ResearchReportSerializer(serializers.ModelSerializer):
             'financial_signals',
             'tech_partnerships',
             'web_sources',
+            'synthesis_text',
             'created_at',
             'updated_at',
         ]

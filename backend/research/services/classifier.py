@@ -102,12 +102,17 @@ class VerticalClassifier:
             Vertical string value
         """
         # First, try keyword-based classification for speed
-        keyword_result = self._classify_by_keywords(client_name, company_overview)
+        keyword_result, keyword_confidence = self._classify_by_keywords(client_name, company_overview)
 
         if keyword_result and not use_llm:
             return keyword_result
 
-        # Use LLM for more accurate classification
+        # Skip LLM when keyword match is high-confidence (2+ hits, no close competition)
+        if keyword_result and keyword_confidence >= 2:
+            logger.info(f"High-confidence keyword match for '{client_name}': {keyword_result} (score={keyword_confidence}), skipping LLM")
+            return keyword_result
+
+        # Use LLM for more accurate classification when keyword match is ambiguous/absent
         if use_llm and self.gemini_client:
             try:
                 llm_result = self.gemini_client.classify_vertical(
@@ -125,8 +130,13 @@ class VerticalClassifier:
         self,
         client_name: str,
         company_overview: str,
-    ) -> Optional[str]:
-        """Classify using keyword matching."""
+    ) -> tuple:
+        """Classify using keyword matching.
+
+        Returns:
+            (vertical_string_or_None, confidence_score)
+            confidence_score is 0 when no match found.
+        """
         text = f"{client_name} {company_overview}".lower()
 
         scores = {}
@@ -137,6 +147,6 @@ class VerticalClassifier:
 
         if scores:
             best_vertical = max(scores, key=scores.get)
-            return best_vertical.value
+            return best_vertical.value, scores[best_vertical]
 
-        return None
+        return None, 0

@@ -9,6 +9,25 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
+def _extract_json_from_response(text: str) -> str:
+    """Strip markdown fences and extract the JSON object from a Gemini response."""
+    text = text.strip()
+    # Remove any number of opening ``` fences
+    while text.startswith('```'):
+        first_newline = text.find('\n')
+        if first_newline == -1:
+            break
+        text = text[first_newline + 1:].strip()
+        if text.endswith('```'):
+            text = text[:-3].strip()
+    # Find the outermost JSON object
+    start = text.find('{')
+    end = text.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        text = text[start:end + 1]
+    return text
+
+
 def _strip_invalid_citations(data: dict, max_n: int) -> dict:
     """Strip [N] markers where N > max_n (out-of-range citations from LLM hallucination)."""
     import re
@@ -655,52 +674,48 @@ Respond with ONLY the vertical name (e.g., "healthcare" or "finance"), nothing e
 
             synthesis_text = synthesis_response.text
 
-            # Phase 3: JSON formatting — stays on MODEL_FLASH
+            # Phase 3: JSON formatting — stays on MODEL_FLASH (3 attempts)
             logger.info(f"Phase 3: Formatting research for '{client_name}'")
             format_prompt = self.JSON_FORMAT_PROMPT.format(research_text=synthesis_text)
 
-            format_response = self.client.models.generate_content(
-                model=self.MODEL_FLASH,
-                contents=format_prompt,
-            )
+            last_json_error: Optional[Exception] = None
+            report_data: Optional[ResearchReportData] = None
+            for attempt in range(1, 4):
+                try:
+                    format_response = self.client.models.generate_content(
+                        model=self.MODEL_FLASH,
+                        contents=format_prompt,
+                    )
+                    response_text = _extract_json_from_response(format_response.text)
+                    data = json.loads(response_text)
 
-            # Parse JSON response
-            response_text = format_response.text.strip()
+                    # Strip out-of-range citation markers that the LLM may have hallucinated
+                    max_citations = len(merged_metadata.web_sources) if merged_metadata else 0
+                    if max_citations:
+                        data = _strip_invalid_citations(data, max_citations)
 
-            # Handle potential markdown code blocks
-            if response_text.startswith('```'):
-                lines = response_text.split('\n')
-                # Remove first and last lines (```json and ```)
-                response_text = '\n'.join(lines[1:-1])
+                    # Filter to known fields to avoid unexpected keyword arguments
+                    known_fields = {f.name for f in ResearchReportData.__dataclass_fields__.values()}
+                    filtered_data = {k: v for k, v in data.items() if k in known_fields}
+                    report_data = ResearchReportData(**filtered_data)
+                    last_json_error = None
+                    break
+                except json.JSONDecodeError as e:
+                    last_json_error = e
+                    logger.warning(f"Phase 3 attempt {attempt}/3 JSON parse failed: {e}")
 
-            data = json.loads(response_text)
-
-            # Strip out-of-range citation markers that the LLM may have hallucinated
-            max_citations = len(merged_metadata.web_sources) if merged_metadata else 0
-            if max_citations:
-                data = _strip_invalid_citations(data, max_citations)
-
-            # Filter to known fields to avoid unexpected keyword arguments
-            known_fields = {f.name for f in ResearchReportData.__dataclass_fields__.values()}
-            filtered_data = {k: v for k, v in data.items() if k in known_fields}
-            report_data = ResearchReportData(**filtered_data)
+            if last_json_error or report_data is None:
+                logger.error(f"Phase 3 JSON parsing failed after 3 attempts: {last_json_error}")
+                return ResearchReportData(), merged_metadata, synthesis_text
 
             # Apply fallback defaults for any failed queries
             report_data = self._apply_fallback_defaults(report_data, query_results)
 
-            return report_data, merged_metadata
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse Gemini response as JSON: {e}")
-            # Return partial data with raw text in overview
-            report_data = ResearchReportData(
-                company_overview=f"Research completed but structured parsing failed. Raw synthesis output available."
-            )
-            return report_data, merged_metadata if 'merged_metadata' in locals() else None
+            return report_data, merged_metadata, synthesis_text
 
         except Exception as e:
             logger.exception("Error during deep research")
-            raise
+            raise e
 
     def classify_vertical(
         self,

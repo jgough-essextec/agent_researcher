@@ -144,12 +144,20 @@ class TestConductResearchNode:
         mock_report = Mock()
         mock_report.to_dict.return_value = {
             'company_overview': 'A test company',
+            'headquarters': 'New York, NY',
+            'employee_count': '10,000',
+            'annual_revenue': '$1B',
+            'ai_footprint': 'Using ML for recommendations',
+            'cloud_footprint': 'AWS',
+            'digital_maturity': 'advanced',
+            'strategic_goals': ['Goal 1'],
+            'key_initiatives': ['Initiative 1'],
             'pain_points': [],
             'opportunities': [],
         }
         mock_metadata = Mock()
         mock_metadata.to_dict.return_value = {'web_sources': [{'uri': 'https://example.com', 'title': 'Example'}]}
-        mock_client.conduct_deep_research.return_value = (mock_report, mock_metadata)
+        mock_client.conduct_deep_research.return_value = (mock_report, mock_metadata, 'raw synthesis text')
 
         state = {
             'client_name': 'TestCo',

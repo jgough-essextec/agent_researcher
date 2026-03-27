@@ -100,12 +100,13 @@ class TestVerticalClassifier:
         """Multiple vertical keywords present — highest score should win."""
         classifier = VerticalClassifier()
         # Contains many healthcare keywords, only one retail keyword
-        result = classifier._classify_by_keywords(
+        vertical, confidence = classifier._classify_by_keywords(
             client_name="General Hospital",
             company_overview="hospital medical healthcare patient clinic diagnostics therapeutic"
         )
 
-        assert result == Vertical.HEALTHCARE.value
+        assert vertical == Vertical.HEALTHCARE.value
+        assert confidence >= 2
 
 
 # ---------------------------------------------------------------------------

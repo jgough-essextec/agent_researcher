@@ -46,6 +46,7 @@ export interface ResearchReport {
   financial_signals?: string[];
   tech_partnerships?: (string | Record<string, string>)[];
   web_sources?: WebSource[];
+  synthesis_text?: string;
   created_at: string;
   updated_at: string;
 }
@@ -167,7 +168,7 @@ export interface ResearchJob {
   client_name: string;
   sales_history: string;
   prompt: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  status: 'pending' | 'running' | 'completed' | 'partial' | 'failed';
   current_step?: string;
   result: string;
   error: string;

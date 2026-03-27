@@ -10,6 +10,7 @@ class ResearchJob(models.Model):
         ('pending', 'Pending'),
         ('running', 'Running'),
         ('completed', 'Completed'),
+        ('partial', 'Partial'),
         ('failed', 'Failed'),
     ]
 
@@ -105,6 +106,9 @@ class ResearchReport(models.Model):
 
     # Web sources from Google Search grounding
     web_sources = models.JSONField(default=list, blank=True)
+
+    # Raw synthesis text (populated when JSON parsing fails — 'partial' jobs)
+    synthesis_text = models.TextField(blank=True)
 
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)

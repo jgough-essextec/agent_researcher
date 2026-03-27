@@ -4,10 +4,9 @@ from .state import ResearchState
 from .nodes import (
     validate_input,
     conduct_research,
-    classify_vertical,
+    classify_and_ops,
     search_competitors,
     analyze_gaps,
-    research_internal_ops,
     correlate_internal_ops,
     finalize_result,
 )
@@ -15,8 +14,11 @@ from .nodes import (
 
 def should_continue(state: ResearchState) -> str:
     """Determine if the workflow should continue or end."""
-    if state.get('status') == 'failed':
+    status = state.get('status')
+    if status == 'failed':
         return 'end'
+    if status == 'partial':
+        return 'finalize'
     return 'continue'
 
 
@@ -24,17 +26,16 @@ def build_research_workflow():
     """Build and compile the enhanced research workflow graph.
 
     Workflow stages:
-    1. validate - Validate input data and API key
-    2. research - Conduct deep research with structured output (AGE-10)
-    3. classify - Classify company into industry vertical (AGE-11)
-    4. internal_ops - Research internal operations intelligence (AGE-20)
-    5. competitors - Search for competitor AI case studies (AGE-12)
-    6. gap_analysis - Analyze technology and capability gaps (AGE-13)
-    7. correlate - Cross-reference gaps with internal ops evidence (AGE-20)
-    8. finalize - Persist results to database
+    1. validate     - Validate input data and API key
+    2. research     - Conduct deep research with structured output (AGE-10)
+    3. classify_and_ops - Classify vertical (AGE-11) + internal ops (AGE-20) in parallel
+    4. competitors  - Search for competitor AI case studies (AGE-12)
+    5. gap_analysis - Analyze technology and capability gaps (AGE-13)
+    6. correlate    - Cross-reference gaps with internal ops evidence (AGE-20)
+    7. finalize     - Persist results to database
 
-    Note: internal_ops runs after classify to leverage vertical info,
-    and correlate runs after both gap_analysis and internal_ops complete.
+    classify_and_ops runs both classify and internal_ops concurrently via
+    ThreadPoolExecutor, cutting the wall-clock time for that stage roughly in half.
     """
     # Create the graph
     workflow = StateGraph(ResearchState)
@@ -42,8 +43,7 @@ def build_research_workflow():
     # Add nodes
     workflow.add_node('validate', validate_input)
     workflow.add_node('research', conduct_research)
-    workflow.add_node('classify', classify_vertical)
-    workflow.add_node('internal_ops', research_internal_ops)
+    workflow.add_node('classify_and_ops', classify_and_ops)
     workflow.add_node('competitors', search_competitors)
     workflow.add_node('gap_analysis', analyze_gaps)
     workflow.add_node('correlate', correlate_internal_ops)
@@ -66,25 +66,18 @@ def build_research_workflow():
         'research',
         should_continue,
         {
-            'continue': 'classify',
+            'continue': 'classify_and_ops',
+            'finalize': 'finalize',
             'end': END,
         }
     )
 
     workflow.add_conditional_edges(
-        'classify',
-        should_continue,
-        {
-            'continue': 'internal_ops',
-            'end': END,
-        }
-    )
-
-    workflow.add_conditional_edges(
-        'internal_ops',
+        'classify_and_ops',
         should_continue,
         {
             'continue': 'competitors',
+            'finalize': 'finalize',
             'end': END,
         }
     )
@@ -94,6 +87,7 @@ def build_research_workflow():
         should_continue,
         {
             'continue': 'gap_analysis',
+            'finalize': 'finalize',
             'end': END,
         }
     )
@@ -103,6 +97,7 @@ def build_research_workflow():
         should_continue,
         {
             'continue': 'correlate',
+            'finalize': 'finalize',
             'end': END,
         }
     )
@@ -112,6 +107,7 @@ def build_research_workflow():
         should_continue,
         {
             'continue': 'finalize',
+            'finalize': 'finalize',
             'end': END,
         }
     )

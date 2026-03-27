@@ -1,5 +1,6 @@
 """Node functions for the research workflow."""
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.conf import settings
 from .state import ResearchState
 
@@ -52,7 +53,7 @@ def conduct_research(state: ResearchState) -> ResearchState:
         client = GeminiClient()
 
         # Conduct structured deep research with grounding
-        report_data, grounding_metadata = client.conduct_deep_research(
+        report_data, grounding_metadata, synthesis_text = client.conduct_deep_research(
             client_name=state.get('client_name', ''),
             sales_history=state.get('sales_history', ''),
             prompt=state.get('prompt', ''),
@@ -66,6 +67,34 @@ def conduct_research(state: ResearchState) -> ResearchState:
         if grounding_metadata:
             web_sources = grounding_metadata.to_dict().get('web_sources', [])
 
+        # Validation gate: if fewer than 5 meaningful fields populated, treat as partial
+        meaningful_fields = [
+            report_dict.get('company_overview'),
+            report_dict.get('headquarters'),
+            report_dict.get('employee_count'),
+            report_dict.get('annual_revenue'),
+            report_dict.get('ai_footprint'),
+            report_dict.get('cloud_footprint'),
+            report_dict.get('digital_maturity'),
+            report_dict.get('strategic_goals'),
+            report_dict.get('key_initiatives'),
+        ]
+        populated = sum(1 for f in meaningful_fields if f)
+        if populated < 5:
+            logger.warning(
+                f"Research for '{state.get('client_name')}' yielded only {populated}/9 fields — "
+                "routing to partial status"
+            )
+            return {
+                **state,
+                'status': 'partial',
+                'synthesis_text': synthesis_text,
+                'web_sources': web_sources,
+                'warnings': (state.get('warnings') or []) + [
+                    f'JSON parsing yielded only {populated}/9 structured fields. Raw synthesis preserved.'
+                ],
+            }
+
         # Also generate plain text result for backward compatibility
         result_text = _format_research_result(report_dict)
 
@@ -74,6 +103,7 @@ def conduct_research(state: ResearchState) -> ResearchState:
             'status': 'classifying',
             'result': result_text,
             'research_report': report_dict,
+            'synthesis_text': synthesis_text,
             'web_sources': web_sources,
         }
 
@@ -88,7 +118,7 @@ def conduct_research(state: ResearchState) -> ResearchState:
 
 def classify_vertical(state: ResearchState) -> ResearchState:
     """Classify the company into an industry vertical (AGE-11)."""
-    if state.get('status') == 'failed':
+    if state.get('status') in ('failed', 'partial'):
         return state
 
     _update_job_step(state.get('job_id'), 'classify')
@@ -125,7 +155,7 @@ def classify_vertical(state: ResearchState) -> ResearchState:
 
 def search_competitors(state: ResearchState) -> ResearchState:
     """Search for competitor AI case studies (AGE-12)."""
-    if state.get('status') == 'failed':
+    if state.get('status') in ('failed', 'partial'):
         return state
 
     _update_job_step(state.get('job_id'), 'competitors')
@@ -186,7 +216,7 @@ def search_competitors(state: ResearchState) -> ResearchState:
 
 def analyze_gaps(state: ResearchState) -> ResearchState:
     """Analyze technology and capability gaps (AGE-13)."""
-    if state.get('status') == 'failed':
+    if state.get('status') in ('failed', 'partial'):
         return state
 
     _update_job_step(state.get('job_id'), 'gap_analysis')
@@ -248,7 +278,7 @@ def research_internal_ops(state: ResearchState) -> ResearchState:
     This runs in parallel with the main research pipeline.
     Gathers employee sentiment, LinkedIn presence, job postings, etc.
     """
-    if state.get('status') == 'failed':
+    if state.get('status') in ('failed', 'partial'):
         return state
 
     _update_job_step(state.get('job_id'), 'internal_ops')
@@ -294,9 +324,79 @@ def research_internal_ops(state: ResearchState) -> ResearchState:
         }
 
 
+def classify_and_ops(state: ResearchState) -> ResearchState:
+    """Run vertical classification and internal ops research in parallel (P3 speed-up).
+
+    Both tasks are independent — they share only the research_report context —
+    so running them concurrently halves the wall-clock time for this stage.
+    internal_ops receives an empty vertical string and uses it only as a hint.
+    """
+    if state.get('status') in ('failed', 'partial'):
+        return state
+
+    _update_job_step(state.get('job_id'), 'classify+ops')
+
+    def _run_classify():
+        from ..services.gemini import GeminiClient
+        from ..services.classifier import VerticalClassifier
+        gemini_client = GeminiClient()
+        classifier = VerticalClassifier(gemini_client=gemini_client)
+        report = state.get('research_report', {})
+        return classifier.classify(
+            client_name=state.get('client_name', ''),
+            company_overview=report.get('company_overview', ''),
+            use_llm=True,
+        )
+
+    def _run_internal_ops():
+        from ..services.gemini import GeminiClient
+        from ..services.internal_ops import InternalOpsService
+        gemini_client = GeminiClient()
+        svc = InternalOpsService(gemini_client)
+        report = state.get('research_report', {})
+        return svc.research_internal_ops(
+            client_name=state.get('client_name', ''),
+            vertical=state.get('vertical', ''),  # may be empty — used as context hint only
+            website=report.get('website', ''),
+            company_overview=report.get('company_overview', ''),
+        )
+
+    vertical = 'other'
+    internal_ops_dict = None
+    new_sources: list = []
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        classify_future = pool.submit(_run_classify)
+        ops_future = pool.submit(_run_internal_ops)
+
+        try:
+            vertical = classify_future.result()
+        except Exception:
+            logger.exception("Error during parallel vertical classification")
+
+        try:
+            ops_data, ops_metadata = ops_future.result()
+            internal_ops_dict = ops_data.to_dict()
+            if ops_metadata:
+                new_sources = ops_metadata.to_dict().get('web_sources', [])
+        except Exception:
+            logger.exception("Error during parallel internal ops research")
+
+    existing_sources = state.get('web_sources') or []
+    merged_sources = existing_sources + [s for s in new_sources if s not in existing_sources]
+
+    return {
+        **state,
+        'status': 'competitor_search',
+        'vertical': vertical,
+        'internal_ops': internal_ops_dict,
+        'web_sources': merged_sources,
+    }
+
+
 def correlate_internal_ops(state: ResearchState) -> ResearchState:
     """Correlate gap analysis findings with internal ops evidence (AGE-20)."""
-    if state.get('status') == 'failed':
+    if state.get('status') in ('failed', 'partial'):
         return state
 
     _update_job_step(state.get('job_id'), 'correlate')
@@ -351,6 +451,8 @@ def finalize_result(state: ResearchState) -> ResearchState:
     if state.get('status') == 'failed':
         return state
 
+    is_partial = state.get('status') == 'partial'
+
     from ..models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
     job_id = state.get('job_id')
@@ -371,44 +473,43 @@ def finalize_result(state: ResearchState) -> ResearchState:
             job.vertical = state['vertical']
             job.save(update_fields=['vertical'])
 
-        # Create ResearchReport
-        report_data = state.get('research_report', {})
-        if report_data:
-            # Clean founded_year - must be int or None
-            founded_year = report_data.get('founded_year')
-            if founded_year is not None:
-                try:
-                    founded_year = int(founded_year)
-                except (ValueError, TypeError):
-                    founded_year = None
+        # Create ResearchReport (always — even for partial, to persist web_sources + synthesis_text)
+        report_data = state.get('research_report', {}) or {}
+        founded_year = report_data.get('founded_year')
+        if founded_year is not None:
+            try:
+                founded_year = int(founded_year)
+            except (ValueError, TypeError):
+                founded_year = None
 
-            ResearchReport.objects.update_or_create(
-                research_job=job,
-                defaults={
-                    'company_overview': report_data.get('company_overview', ''),
-                    'founded_year': founded_year,
-                    'headquarters': report_data.get('headquarters', ''),
-                    'employee_count': report_data.get('employee_count', ''),
-                    'annual_revenue': report_data.get('annual_revenue', ''),
-                    'website': report_data.get('website', ''),
-                    'recent_news': report_data.get('recent_news', []),
-                    'decision_makers': report_data.get('decision_makers', []),
-                    'pain_points': report_data.get('pain_points', []),
-                    'opportunities': report_data.get('opportunities', []),
-                    'digital_maturity': report_data.get('digital_maturity', ''),
-                    'ai_footprint': report_data.get('ai_footprint', ''),
-                    'ai_adoption_stage': report_data.get('ai_adoption_stage', ''),
-                    'strategic_goals': report_data.get('strategic_goals', []),
-                    'key_initiatives': report_data.get('key_initiatives', []),
-                    'talking_points': report_data.get('talking_points', []),
-                    'cloud_footprint': report_data.get('cloud_footprint', ''),
-                    'security_posture': report_data.get('security_posture', ''),
-                    'data_maturity': report_data.get('data_maturity', ''),
-                    'financial_signals': report_data.get('financial_signals', []),
-                    'tech_partnerships': report_data.get('tech_partnerships', []),
-                    'web_sources': state.get('web_sources', []),
-                }
-            )
+        ResearchReport.objects.update_or_create(
+            research_job=job,
+            defaults={
+                'company_overview': report_data.get('company_overview', ''),
+                'founded_year': founded_year,
+                'headquarters': report_data.get('headquarters', ''),
+                'employee_count': report_data.get('employee_count', ''),
+                'annual_revenue': report_data.get('annual_revenue', ''),
+                'website': report_data.get('website', ''),
+                'recent_news': report_data.get('recent_news', []),
+                'decision_makers': report_data.get('decision_makers', []),
+                'pain_points': report_data.get('pain_points', []),
+                'opportunities': report_data.get('opportunities', []),
+                'digital_maturity': report_data.get('digital_maturity', ''),
+                'ai_footprint': report_data.get('ai_footprint', ''),
+                'ai_adoption_stage': report_data.get('ai_adoption_stage', ''),
+                'strategic_goals': report_data.get('strategic_goals', []),
+                'key_initiatives': report_data.get('key_initiatives', []),
+                'talking_points': report_data.get('talking_points', []),
+                'cloud_footprint': report_data.get('cloud_footprint', ''),
+                'security_posture': report_data.get('security_posture', ''),
+                'data_maturity': report_data.get('data_maturity', ''),
+                'financial_signals': report_data.get('financial_signals', []),
+                'tech_partnerships': report_data.get('tech_partnerships', []),
+                'web_sources': state.get('web_sources', []),
+                'synthesis_text': state.get('synthesis_text', ''),
+            }
+        )
         logger.info(f"ResearchReport saved for job {job_id}")
     except Exception as e:
         logger.exception("Error saving ResearchReport for job %s", job_id)
@@ -488,21 +589,22 @@ def finalize_result(state: ResearchState) -> ResearchState:
     except Exception as mem_error:
         logger.warning(f"Memory capture failed (non-fatal): {mem_error}")
 
-    # Persist final status to DB here so the job shows as completed even if the
-    # HTTP request handler is interrupted (e.g. Cloud Run 300s timeout).
+    # Persist final status to DB here so the job shows as completed/partial even if the
+    # HTTP request handler is interrupted (e.g. Cloud Run timeout).
+    final_status = 'partial' if is_partial else 'completed'
     try:
-        job.status = 'completed'
+        job.status = final_status
         job.current_step = ''
-        job.result = state.get('result', '')
-        job.error = ''
+        job.result = state.get('result', '') or state.get('synthesis_text', '')
+        job.error = '; '.join(state.get('warnings') or []) if is_partial else ''
         job.save(update_fields=['status', 'current_step', 'result', 'error'])
-        logger.info(f"Job {job_id} persisted as completed in DB")
+        logger.info(f"Job {job_id} persisted as {final_status} in DB")
     except Exception as e:
         logger.exception("Error persisting final job status for %s", job_id)
 
     return {
         **state,
-        'status': 'completed',
+        'status': final_status,
     }
 
 

@@ -40,6 +40,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
   };
 
   const isCompleted = job.status === 'completed';
+  const isPartial = job.status === 'partial';
 
   const tabs = [
     { id: 'overview' as TabId, label: 'Overview', available: true, cta: false },
@@ -48,7 +49,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
     { id: 'gaps' as TabId, label: 'Gap Analysis', available: !!job.gap_analysis, cta: false },
     { id: 'intel' as TabId, label: 'Org Signals', available: !!job.internal_ops, cta: false },
     { id: 'sources' as TabId, label: 'Sources', available: !!(job.report?.web_sources?.length), cta: false },
-    { id: 'raw' as TabId, label: 'Debug', available: !!job.result, cta: false },
+    { id: 'raw' as TabId, label: 'Debug', available: !!(job.result || isPartial), cta: false },
     { id: 'generate' as TabId, label: 'Generate', available: isCompleted, cta: true },
   ];
 
@@ -90,6 +91,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
             )}
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${
               job.status === 'completed' ? 'bg-green-100 text-green-800' :
+              job.status === 'partial' ? 'bg-yellow-100 text-yellow-800' :
               job.status === 'failed' ? 'bg-red-100 text-red-800' :
               job.status === 'running' ? 'bg-blue-100 text-blue-800' :
               'bg-gray-100 text-gray-800'
@@ -146,6 +148,22 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
           jobId={job.id}
           onOpenGenerate={() => setActiveTab('generate')}
         />
+      )}
+
+      {/* Partial research warning */}
+      {isPartial && (
+        <div className="px-4 py-3 bg-yellow-50 border-b border-yellow-200 flex items-start gap-3">
+          <svg className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+          <div>
+            <p className="text-sm font-medium text-yellow-800">Partial research result</p>
+            <p className="text-sm text-yellow-700 mt-0.5">
+              The AI synthesis completed but structured parsing failed. Raw synthesis text is available in the Debug tab.
+              {job.error && <span className="block mt-1 text-yellow-600">{job.error}</span>}
+            </p>
+          </div>
+        </div>
       )}
 
       {/* Content */}

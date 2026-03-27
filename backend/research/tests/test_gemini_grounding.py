@@ -252,8 +252,8 @@ class TestGeminiClientDeepResearch:
             result = client.conduct_deep_research("Test Company")
 
         assert isinstance(result, tuple)
-        assert len(result) == 2
-        report_data, grounding_metadata = result
+        assert len(result) == 3
+        report_data, grounding_metadata, synthesis_text = result
         assert isinstance(report_data, ResearchReportData)
         assert report_data.company_overview == "Test company overview"
         assert grounding_metadata is None  # No grounding in mock
@@ -310,7 +310,7 @@ class TestGeminiClientDeepResearch:
             client = GeminiClient(api_key="test-key")
             result = client.conduct_deep_research("Test Company")
 
-        report_data, grounding_metadata = result
+        report_data, grounding_metadata, synthesis_text = result
         assert grounding_metadata is not None
         assert len(grounding_metadata.web_sources) == 1
         assert grounding_metadata.web_sources[0].uri == "https://source.com/article"
@@ -328,8 +328,8 @@ class TestGeminiClientDeepResearch:
             client = GeminiClient(api_key="test-key")
             result = client.conduct_deep_research("Test Company")
 
-        report_data, grounding_metadata = result
-        assert "structured parsing failed" in report_data.company_overview
+        report_data, grounding_metadata, synthesis_text = result
+        assert report_data.company_overview == ''  # empty on parse failure; synthesis_text has the raw content
 
     def test_conduct_deep_research_handles_markdown_code_blocks(self):
         """Test handling of JSON wrapped in markdown code blocks."""
@@ -368,7 +368,7 @@ class TestGeminiClientDeepResearch:
             client = GeminiClient(api_key="test-key")
             result = client.conduct_deep_research("Test Company")
 
-        report_data, _ = result
+        report_data, _, synthesis_text = result
         assert report_data.company_overview == "Markdown wrapped"
 
 
@@ -811,7 +811,7 @@ class TestParallelDeepResearch:
 
         with patch('google.genai.Client', return_value=mock_genai_client):
             client = GeminiClient(api_key="test-key")
-            report_data, grounding_metadata = client.conduct_deep_research("Test Company")
+            report_data, grounding_metadata, synthesis_text = client.conduct_deep_research("Test Company")
 
         # Should have at least 10 calls: 8 parallel + synthesis + formatting
         assert mock_genai_client.models.generate_content.call_count >= 10
@@ -879,7 +879,7 @@ class TestParallelDeepResearch:
 
         with patch('google.genai.Client', return_value=mock_genai_client):
             client = GeminiClient(api_key="test-key")
-            report_data, grounding_metadata = client.conduct_deep_research("Test Company")
+            report_data, grounding_metadata, synthesis_text = client.conduct_deep_research("Test Company")
 
         # Should have 8 unique sources from the 8 parallel queries
         assert grounding_metadata is not None

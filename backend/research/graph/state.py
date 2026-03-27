@@ -22,12 +22,19 @@ class ResearchState(TypedDict):
         'gap_analysis',
         'correlating',
         'completed',
+        'partial',
         'failed'
     ]
 
     # Output fields
     result: str
     error: str
+
+    # Warnings accumulated during non-fatal failures
+    warnings: Optional[list]
+
+    # Raw synthesis text (stored when JSON parsing fails for 'partial' jobs)
+    synthesis_text: Optional[str]
 
     # Structured research output (AGE-10)
     research_report: Optional[dict]
