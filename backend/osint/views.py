@@ -437,7 +437,7 @@ class DownloadReportView(APIView):
             c if c.isalnum() or c == '_' else '_'
             for c in job.organization_name
         )
-        filename = f"Pellera_OSINT_{safe_name}.docx"
+        filename = f"OSINT_{safe_name}.docx"
 
         response = FileResponse(
             open(file_path, 'rb'),

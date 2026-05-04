@@ -35,9 +35,9 @@ SECTION_PROMPTS = {
         "Identify specific compliance gaps revealed by the assessment."
     ),
     'engagement_proposal': (
-        "Write a consultative engagement proposal mapping OSINT findings to Pellera Technologies services. "
+        "Write a consultative engagement proposal mapping OSINT findings to recommended services. "
         "Service mappings: {service_mappings}. "
-        "For each service: scope, duration, deliverables. Framed as 'how Pellera can help'. "
+        "For each service: scope, duration, deliverables. Framed consultatively as 'how we can help'. "
         "Services: MDR/SOC, Pen Testing/ASM, vCISO/GRC, IR Retainer, "
         "Infrastructure, Digital Workplace, Application Modernization, AI/Intelligent Operations, Field CTO."
     ),

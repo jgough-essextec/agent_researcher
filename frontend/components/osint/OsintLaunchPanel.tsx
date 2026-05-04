@@ -70,7 +70,7 @@ export function OsintLaunchPanel({
         <li>Certificate transparency &amp; subdomain discovery</li>
         <li>Email security posture (SPF/DKIM/DMARC)</li>
         <li>Infrastructure &amp; technology fingerprinting</li>
-        <li>Professional .docx report with Pellera service mapping</li>
+        <li>Professional .docx report with service mapping and recommendations</li>
       </ul>
       <Link
         href={`/osint/new?${params.toString()}`}

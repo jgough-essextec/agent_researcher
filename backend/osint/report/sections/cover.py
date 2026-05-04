@@ -33,7 +33,7 @@ class CoverSection(BaseReportSection):
 
         meta = document.add_paragraph()
         meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        meta.add_run(f"Prepared by: Pellera Technologies\n")
+        meta.add_run(f"Prepared by: Your Security Practice\n")
         meta.add_run(f"Primary Domain: {self.job.primary_domain}\n")
         meta.add_run(f"Date: {date.today().strftime('%B %d, %Y')}\n")
         meta.add_run(

@@ -44,7 +44,7 @@ export function RemediationTab({ jobId }: RemediationTabProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-800">Recommended Pellera Services</h3>
+      <h3 className="font-medium text-gray-800">Recommended Services</h3>
       {mappings.map((m) => (
         <div key={m.id} className="border border-gray-200 rounded-lg p-4 space-y-2">
           <div className="flex items-center justify-between">
