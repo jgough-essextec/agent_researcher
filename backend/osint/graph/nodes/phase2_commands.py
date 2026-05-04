@@ -30,7 +30,7 @@ def _build_round1_commands(domain: str, subdomains: list, dns_records: list) -> 
 
     commands.append(
         f'curl -s "https://crt.sh/?q=%.{domain}&output=json" | '
-        f'python3 -c "import sys,json; [print(e[\'name_value\']) for e in json.load(sys.stdin)]" | sort -u'
+        f'python3 -c "import sys,json; data=sys.stdin.read(); [print(e[\'name_value\']) for e in (json.loads(data) if data.strip() else [])]" | sort -u'
     )
     commands.append(f'whois {domain}')
     commands.append(f'dig {domain} MX TXT NS SOA +short')
