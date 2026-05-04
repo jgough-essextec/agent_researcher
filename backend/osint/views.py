@@ -41,6 +41,14 @@ class OsintJobListCreateView(generics.ListCreateAPIView):
             return OsintJobCreateSerializer
         return OsintJobSerializer
 
+    def create(self, request, *args, **kwargs):
+        create_serializer = OsintJobCreateSerializer(data=request.data)
+        create_serializer.is_valid(raise_exception=True)
+        job = create_serializer.save()
+        # Return the full serializer so the response includes id and all fields
+        response_serializer = OsintJobSerializer(job)
+        return Response(response_serializer.data, status=http_status.HTTP_201_CREATED)
+
 
 class OsintJobDetailView(generics.RetrieveAPIView):
     queryset = OsintJob.objects.all()
