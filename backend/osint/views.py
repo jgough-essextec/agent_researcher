@@ -218,13 +218,8 @@ class SubmitTerminalOutputView(APIView):
         return Response(serializer.data, status=http_status.HTTP_202_ACCEPTED)
 
     def _resume_graph(self, job_id: str, submissions: list) -> None:
-        from osint.graph.workflow import get_graph
-        graph = get_graph()
-        config = {"configurable": {"thread_id": job_id}}
-        try:
-            graph.invoke({"terminal_submissions": submissions}, config=config)
-        except Exception as exc:
-            OsintJob.objects.filter(pk=job_id).update(status='failed', error=str(exc))
+        from osint.graph.workflow import run_from_terminal_submission
+        run_from_terminal_submission(job_id, submissions)
 
 
 VALID_SOURCES = {'dnsdumpster', 'shodan', 'other'}
@@ -318,13 +313,8 @@ class SubmitScreenshotsView(APIView):
         )
 
     def _resume_graph(self, job_id: str, screenshot_ids: list) -> None:
-        from osint.graph.workflow import get_graph
-        graph = get_graph()
-        config = {"configurable": {"thread_id": job_id}}
-        try:
-            graph.invoke({"screenshots": screenshot_ids}, config=config)
-        except Exception as exc:
-            OsintJob.objects.filter(pk=job_id).update(status='failed', error=str(exc))
+        from osint.graph.workflow import run_from_screenshots
+        run_from_screenshots(job_id, screenshot_ids)
 
 
 class SkipScreenshotsView(APIView):
@@ -353,13 +343,8 @@ class SkipScreenshotsView(APIView):
         return Response({'detail': 'Screenshots skipped, analysis will proceed without them.'})
 
     def _resume_graph(self, job_id: str) -> None:
-        from osint.graph.workflow import get_graph
-        graph = get_graph()
-        config = {"configurable": {"thread_id": job_id}}
-        try:
-            graph.invoke({"screenshots": []}, config=config)
-        except Exception as exc:
-            OsintJob.objects.filter(pk=job_id).update(status='failed', error=str(exc))
+        from osint.graph.workflow import run_from_screenshots
+        run_from_screenshots(job_id, [])
 
 
 class GenerateReportView(APIView):
