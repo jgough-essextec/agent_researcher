@@ -13,6 +13,7 @@ import SourcesTab from './tabs/SourcesTab';
 import RawTab from './tabs/RawTab';
 import GenerateTab from './tabs/GenerateTab';
 import ResearchCompletionBanner from '@/components/ResearchCompletionBanner';
+import TabErrorBoundary from './shared/TabErrorBoundary';
 
 interface ResearchResultsProps {
   job: ResearchJob;
@@ -174,37 +175,61 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
           <p className="text-red-600">{job.error || 'Research failed'}</p>
         ) : (
           <>
-            {activeTab === 'overview' && <OverviewTab job={job} sources={job.report?.web_sources ?? []} />}
-            {activeTab === 'report' && job.report && <ReportTab report={job.report} sources={job.report.web_sources ?? []} />}
+            {activeTab === 'overview' && (
+              <TabErrorBoundary tabName="Overview">
+                <OverviewTab job={job} sources={job.report?.web_sources ?? []} />
+              </TabErrorBoundary>
+            )}
+            {activeTab === 'report' && job.report && (
+              <TabErrorBoundary tabName="Full Report">
+                <ReportTab report={job.report} sources={job.report.web_sources ?? []} />
+              </TabErrorBoundary>
+            )}
             {activeTab === 'competitors' && job.competitor_case_studies && (
-              <CompetitorsTab
-                caseStudies={job.competitor_case_studies}
-                projectId={projectId}
-                iterationId={iterationId}
-                clientName={job.client_name}
-              />
+              <TabErrorBoundary tabName="Competitors">
+                <CompetitorsTab
+                  caseStudies={job.competitor_case_studies}
+                  projectId={projectId}
+                  iterationId={iterationId}
+                  clientName={job.client_name}
+                />
+              </TabErrorBoundary>
             )}
             {activeTab === 'gaps' && job.gap_analysis && (
-              <GapsTab
-                gaps={job.gap_analysis}
-                sources={job.report?.web_sources ?? []}
-                projectId={projectId}
-                iterationId={iterationId}
-                clientName={job.client_name}
-              />
+              <TabErrorBoundary tabName="Gap Analysis">
+                <GapsTab
+                  gaps={job.gap_analysis}
+                  sources={job.report?.web_sources ?? []}
+                  projectId={projectId}
+                  iterationId={iterationId}
+                  clientName={job.client_name}
+                />
+              </TabErrorBoundary>
             )}
-            {activeTab === 'intel' && job.internal_ops && <InsideIntelTab intel={job.internal_ops} sources={job.report?.web_sources ?? []} />}
+            {activeTab === 'intel' && job.internal_ops && (
+              <TabErrorBoundary tabName="Org Signals">
+                <InsideIntelTab intel={job.internal_ops} sources={job.report?.web_sources ?? []} />
+              </TabErrorBoundary>
+            )}
             {activeTab === 'sources' && job.report?.web_sources && (
-              <SourcesTab sources={job.report.web_sources} />
+              <TabErrorBoundary tabName="Sources">
+                <SourcesTab sources={job.report.web_sources} />
+              </TabErrorBoundary>
             )}
-            {activeTab === 'raw' && <RawTab result={job.result} />}
+            {activeTab === 'raw' && (
+              <TabErrorBoundary tabName="Debug">
+                <RawTab result={job.result} />
+              </TabErrorBoundary>
+            )}
             {activeTab === 'generate' && (
-              <GenerateTab
-                researchJobId={job.id}
-                clientName={job.client_name}
-                projectId={projectId}
-                iterationId={iterationId}
-              />
+              <TabErrorBoundary tabName="Generate">
+                <GenerateTab
+                  researchJobId={job.id}
+                  clientName={job.client_name}
+                  projectId={projectId}
+                  iterationId={iterationId}
+                />
+              </TabErrorBoundary>
             )}
           </>
         )}

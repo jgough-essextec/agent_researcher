@@ -2,8 +2,9 @@ import { GapCorrelation, WebSource } from '@/types';
 import MarkdownText from './MarkdownText';
 
 export function RatingStars({ rating }: { rating: number }) {
-  const fullStars = Math.floor(rating);
-  const hasHalfStar = rating % 1 >= 0.5;
+  const safeRating = Number.isFinite(Number(rating)) ? Number(rating) : 0;
+  const fullStars = Math.floor(safeRating);
+  const hasHalfStar = safeRating % 1 >= 0.5;
   const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 
   return (
@@ -20,6 +21,7 @@ export function RatingStars({ rating }: { rating: number }) {
 }
 
 export function RatingCard({ label, value }: { label: string; value: number }) {
+  const safeValue = Number.isFinite(value) ? value : 0;
   const getColor = (val: number) => {
     if (val >= 4) return 'text-green-600';
     if (val >= 3) return 'text-yellow-600';
@@ -28,7 +30,7 @@ export function RatingCard({ label, value }: { label: string; value: number }) {
 
   return (
     <div className="p-3 bg-gray-50 rounded-lg text-center">
-      <div className={`text-lg font-bold ${getColor(value)}`}>{value.toFixed(1)}</div>
+      <div className={`text-lg font-bold ${getColor(safeValue)}`}>{safeValue.toFixed(1)}</div>
       <div className="text-xs text-gray-600">{label}</div>
     </div>
   );

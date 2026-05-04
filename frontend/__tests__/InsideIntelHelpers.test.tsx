@@ -37,6 +37,24 @@ describe('RatingStars', () => {
     );
     expect(yellowStars.length).toBe(0);
   });
+
+  it('renders without crash when rating is undefined', () => {
+    const { container } = render(<RatingStars rating={undefined as unknown as number} />);
+    expect(container).toBeTruthy();
+  });
+
+  it('renders without crash when rating is null', () => {
+    const { container } = render(<RatingStars rating={null as unknown as number} />);
+    expect(container).toBeTruthy();
+  });
+
+  it('renders 0 stars when rating is 0', () => {
+    const { container } = render(<RatingStars rating={0} />);
+    const yellowStars = Array.from(container.querySelectorAll('span')).filter(
+      (s) => s.className.includes('yellow')
+    );
+    expect(yellowStars.length).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -59,6 +77,21 @@ describe('RatingCard', () => {
     render(<RatingCard label="Management" value={2.1} />);
     const valueEl = screen.getByText('2.1');
     expect(valueEl.className).toContain('red');
+  });
+
+  it('renders 0.0 when value is undefined', () => {
+    render(<RatingCard label="Test" value={undefined as unknown as number} />);
+    expect(screen.getByText('0.0')).toBeTruthy();
+  });
+
+  it('renders 0.0 when value is null', () => {
+    render(<RatingCard label="Test" value={null as unknown as number} />);
+    expect(screen.getByText('0.0')).toBeTruthy();
+  });
+
+  it('renders 0.0 when value is NaN', () => {
+    render(<RatingCard label="Test" value={NaN} />);
+    expect(screen.getByText('0.0')).toBeTruthy();
   });
 });
 

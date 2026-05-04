@@ -1,3 +1,4 @@
+from copy import deepcopy
 from rest_framework import serializers
 from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
@@ -91,6 +92,25 @@ class GapAnalysisSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+_EMPLOYEE_SENTIMENT_DEFAULTS: dict = {
+    'overall_rating': 0.0, 'work_life_balance': 0.0, 'compensation': 0.0,
+    'culture': 0.0, 'management': 0.0, 'recommend_pct': 0,
+    'positive_themes': [], 'negative_themes': [], 'trend': 'stable',
+}
+_LINKEDIN_PRESENCE_DEFAULTS: dict = {
+    'follower_count': 0, 'engagement_level': 'medium',
+    'recent_posts': [], 'employee_trend': 'stable', 'notable_changes': [],
+}
+_JOB_POSTINGS_DEFAULTS: dict = {
+    'total_openings': 0, 'departments_hiring': {}, 'skills_sought': [],
+    'seniority_distribution': {}, 'urgency_signals': [], 'insights': '',
+}
+_NEWS_SENTIMENT_DEFAULTS: dict = {
+    'overall_sentiment': 'neutral', 'coverage_volume': 'low',
+    'topics': [], 'headlines': [],
+}
+
+
 class InternalOpsIntelSerializer(serializers.ModelSerializer):
     """Serializer for internal operations intelligence (AGE-20)."""
 
@@ -112,6 +132,30 @@ class InternalOpsIntelSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
         read_only_fields = fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        def _fill_defaults(field_name: str, defaults: dict) -> None:
+            """Merge stored JSON with defaults, replacing any None values."""
+            stored = data.get(field_name) or {}
+            merged = {**deepcopy(defaults), **{k: v for k, v in stored.items() if v is not None}}
+            data[field_name] = merged
+
+        _fill_defaults('employee_sentiment', _EMPLOYEE_SENTIMENT_DEFAULTS)
+        _fill_defaults('linkedin_presence', _LINKEDIN_PRESENCE_DEFAULTS)
+        _fill_defaults('job_postings', _JOB_POSTINGS_DEFAULTS)
+        _fill_defaults('news_sentiment', _NEWS_SENTIMENT_DEFAULTS)
+
+        # Lists at the top level
+        if not isinstance(data.get('social_media_mentions'), list):
+            data['social_media_mentions'] = []
+        if not isinstance(data.get('key_insights'), list):
+            data['key_insights'] = []
+        if not isinstance(data.get('gap_correlations'), list):
+            data['gap_correlations'] = []
+
+        return data
 
 
 class ResearchJobDetailSerializer(serializers.ModelSerializer):

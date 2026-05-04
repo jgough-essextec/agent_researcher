@@ -21,10 +21,10 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <span className="text-gray-800 font-medium">Overall Rating</span>
-                <RatingStars rating={intel.employee_sentiment.overall_rating} />
+                <RatingStars rating={intel.employee_sentiment?.overall_rating ?? 0} />
               </div>
               <span className="text-lg font-bold text-gray-900">
-                {intel.employee_sentiment.overall_rating.toFixed(1)}/5.0
+                {(intel.employee_sentiment?.overall_rating ?? 0).toFixed(1)}/5.0
               </span>
             </div>
 
@@ -39,7 +39,7 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             {/* Recommend & Trend */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-3 bg-blue-50 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-600">{intel.employee_sentiment.recommend_pct}%</div>
+                <div className="text-2xl font-bold text-blue-600">{intel.employee_sentiment?.recommend_pct ?? 0}%</div>
                 <div className="text-sm text-gray-700">Would Recommend</div>
               </div>
               <div className="p-3 bg-gray-50 rounded-lg text-center">
@@ -49,11 +49,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
 
             {/* Themes */}
             <div className="grid md:grid-cols-2 gap-4">
-              {intel.employee_sentiment.positive_themes.length > 0 && (
+              {(intel.employee_sentiment?.positive_themes ?? []).length > 0 && (
                 <div>
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Positive Themes</h5>
                   <div className="flex flex-wrap gap-2">
-                    {intel.employee_sentiment.positive_themes.map((theme, i) => (
+                    {(intel.employee_sentiment?.positive_themes ?? []).map((theme, i) => (
                       <span key={i} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                         {theme}
                       </span>
@@ -61,11 +61,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
                   </div>
                 </div>
               )}
-              {intel.employee_sentiment.negative_themes.length > 0 && (
+              {(intel.employee_sentiment?.negative_themes ?? []).length > 0 && (
                 <div>
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Negative Themes</h5>
                   <div className="flex flex-wrap gap-2">
-                    {intel.employee_sentiment.negative_themes.map((theme, i) => (
+                    {(intel.employee_sentiment?.negative_themes ?? []).map((theme, i) => (
                       <span key={i} className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
                         {theme}
                       </span>
@@ -89,11 +89,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             </div>
 
             {/* Departments Hiring */}
-            {Object.keys(intel.job_postings.departments_hiring).length > 0 && (
+            {Object.keys(intel.job_postings?.departments_hiring ?? {}).length > 0 && (
               <div>
                 <h5 className="text-sm font-medium text-gray-700 mb-2">Departments Hiring</h5>
                 <div className="space-y-2">
-                  {Object.entries(intel.job_postings.departments_hiring)
+                  {Object.entries(intel.job_postings?.departments_hiring ?? {})
                     .sort(([, a], [, b]) => b - a)
                     .map(([dept, count]) => (
                       <div key={dept} className="flex items-center justify-between">
@@ -103,7 +103,7 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
                             <div
                               className="h-full bg-blue-500 rounded-full"
                               style={{
-                                width: `${(count / Math.max(...Object.values(intel.job_postings.departments_hiring))) * 100}%`
+                                width: `${(count / Math.max(...Object.values(intel.job_postings?.departments_hiring ?? {}))) * 100}%`
                               }}
                             />
                           </div>
@@ -116,11 +116,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             )}
 
             {/* Skills Sought */}
-            {intel.job_postings.skills_sought.length > 0 && (
+            {(intel.job_postings?.skills_sought ?? []).length > 0 && (
               <div>
                 <h5 className="text-sm font-medium text-gray-700 mb-2">Key Skills Sought</h5>
                 <div className="flex flex-wrap gap-2">
-                  {intel.job_postings.skills_sought.map((skill, i) => (
+                  {(intel.job_postings?.skills_sought ?? []).map((skill, i) => (
                     <span key={i} className="px-3 py-1 bg-purple-100 text-purple-800 text-sm rounded-full">
                       {skill}
                     </span>
@@ -130,11 +130,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             )}
 
             {/* Seniority Distribution */}
-            {Object.keys(intel.job_postings.seniority_distribution).length > 0 && (
+            {Object.keys(intel.job_postings?.seniority_distribution ?? {}).length > 0 && (
               <div>
                 <h5 className="text-sm font-medium text-gray-700 mb-2">Seniority Distribution</h5>
                 <div className="flex gap-3">
-                  {Object.entries(intel.job_postings.seniority_distribution).map(([level, count]) => (
+                  {Object.entries(intel.job_postings?.seniority_distribution ?? {}).map(([level, count]) => (
                     <div key={level} className="text-center p-2 bg-gray-50 rounded-lg flex-1">
                       <div className="font-bold text-gray-900">{count}</div>
                       <div className="text-xs text-gray-600">{level}</div>
@@ -145,11 +145,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             )}
 
             {/* Urgency Signals */}
-            {intel.job_postings.urgency_signals.length > 0 && (
+            {(intel.job_postings?.urgency_signals ?? []).length > 0 && (
               <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
                 <h5 className="text-sm font-medium text-orange-800 mb-2">Urgency Signals</h5>
                 <ul className="space-y-1">
-                  {intel.job_postings.urgency_signals.map((signal, i) => (
+                  {(intel.job_postings?.urgency_signals ?? []).map((signal, i) => (
                     <li key={i} className="text-sm text-orange-900 flex items-start">
                       <span className="mr-2">-</span>
                       {signal}
@@ -177,7 +177,7 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             <div className="grid grid-cols-3 gap-3">
               <div className="p-3 bg-blue-50 rounded-lg text-center">
                 <div className="text-xl font-bold text-blue-600">
-                  {intel.linkedin_presence.follower_count.toLocaleString()}
+                  {(intel.linkedin_presence?.follower_count ?? 0).toLocaleString()}
                 </div>
                 <div className="text-xs text-gray-700">LinkedIn Followers</div>
               </div>
@@ -193,11 +193,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             </div>
 
             {/* Recent Posts */}
-            {intel.linkedin_presence.recent_posts.length > 0 && (
+            {(intel.linkedin_presence?.recent_posts ?? []).length > 0 && (
               <div>
                 <h5 className="text-sm font-medium text-gray-700 mb-2">Recent Company Posts</h5>
                 <div className="space-y-2">
-                  {intel.linkedin_presence.recent_posts.slice(0, 3).map((post, i) => (
+                  {(intel.linkedin_presence?.recent_posts ?? []).slice(0, 3).map((post, i) => (
                     <div key={i} className="p-3 bg-gray-50 rounded-lg">
                       <div className="font-medium text-gray-900 text-sm">{post.title}</div>
                       <div className="text-xs text-gray-700 mt-1">{post.summary}</div>
@@ -209,11 +209,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
             )}
 
             {/* Notable Changes */}
-            {intel.linkedin_presence.notable_changes.length > 0 && (
+            {(intel.linkedin_presence?.notable_changes ?? []).length > 0 && (
               <div>
                 <h5 className="text-sm font-medium text-gray-700 mb-2">Notable Changes</h5>
                 <ul className="space-y-1">
-                  {intel.linkedin_presence.notable_changes.map((change, i) => (
+                  {(intel.linkedin_presence?.notable_changes ?? []).map((change, i) => (
                     <li key={i} className="text-sm text-gray-900 flex items-start">
                       <span className="text-blue-600 mr-2">-</span>
                       {change}
@@ -267,11 +267,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
                 </div>
               </div>
 
-              {intel.news_sentiment.topics.length > 0 && (
+              {(intel.news_sentiment?.topics ?? []).length > 0 && (
                 <div>
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Key Topics</h5>
                   <div className="flex flex-wrap gap-2">
-                    {intel.news_sentiment.topics.map((topic, i) => (
+                    {(intel.news_sentiment?.topics ?? []).map((topic, i) => (
                       <span key={i} className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded">
                         {topic}
                       </span>
@@ -280,11 +280,11 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
                 </div>
               )}
 
-              {intel.news_sentiment.headlines.length > 0 && (
+              {(intel.news_sentiment?.headlines ?? []).length > 0 && (
                 <div>
                   <h5 className="text-sm font-medium text-gray-700 mb-2">Recent Headlines</h5>
                   <div className="space-y-2">
-                    {intel.news_sentiment.headlines.slice(0, 5).map((headline, i) => (
+                    {(intel.news_sentiment?.headlines ?? []).slice(0, 5).map((headline, i) => (
                       <div key={i} className="p-2 bg-gray-50 rounded flex items-start justify-between gap-2">
                         <div>
                           <div className="text-sm text-gray-900">{headline.title}</div>
@@ -335,10 +335,10 @@ export default function InsideIntelTab({ intel, sources = [] }: { intel: Interna
         <div className="flex items-center gap-4">
           <span className="text-gray-600">
             Confidence: <span className={`font-medium ${
-              intel.confidence_score >= 0.7 ? 'text-green-600' :
-              intel.confidence_score >= 0.4 ? 'text-yellow-600' :
+              (intel.confidence_score ?? 0) >= 0.7 ? 'text-green-600' :
+              (intel.confidence_score ?? 0) >= 0.4 ? 'text-yellow-600' :
               'text-red-600'
-            }`}>{Math.round(intel.confidence_score * 100)}%</span>
+            }`}>{Math.round((intel.confidence_score ?? 0) * 100)}%</span>
           </span>
           {intel.data_freshness && (
             <span className="text-gray-600">
