@@ -289,3 +289,101 @@ class TestFinalizeResultNode:
         gap = GapAnalysis.objects.get(research_job=job)
         assert gap.technology_gaps == ['T1']
         assert gap.confidence_score == 0.75
+
+
+# ---------------------------------------------------------------------------
+# Task 3.2 — per-record fault tolerance in finalize_result
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestFinalizeResultCompetitorFaultTolerance:
+    def test_saves_valid_competitors_when_one_record_fails(self):
+        """If one competitor record fails to save, the others are still persisted."""
+        from research.graph.nodes import finalize_result
+        from research.models import ResearchJob, CompetitorCaseStudy
+
+        job = ResearchJob.objects.create(client_name="FaultTest", status="running")
+        state = {
+            'job_id': str(job.id),
+            'client_name': 'FaultTest',
+            'status': 'completed',
+            'result': '',
+            'research_report': {'company_overview': 'A test company'},
+            'competitor_case_studies': [
+                {
+                    'competitor_name': 'Good Corp',
+                    'vertical': 'tech',
+                    'case_study_title': 'Good Case',
+                    'summary': 'Great outcome.',
+                    'technologies_used': ['Python'],
+                    'outcomes': ['Success'],
+                    'source_url': 'https://valid.example.com',
+                    'relevance_score': 0.8,
+                },
+                {
+                    # This record has relevance_score as a string — will fail FloatField
+                    'competitor_name': 'Bad Corp',
+                    'vertical': 'tech',
+                    'case_study_title': 'Bad Case',
+                    'summary': 'Bad.',
+                    'technologies_used': [],
+                    'outcomes': [],
+                    'source_url': 'https://bad.example.com',
+                    'relevance_score': 'not-a-float',  # causes ValueError on create
+                },
+                {
+                    'competitor_name': 'Also Good Corp',
+                    'vertical': 'tech',
+                    'case_study_title': 'Also Good Case',
+                    'summary': 'Also great.',
+                    'technologies_used': [],
+                    'outcomes': [],
+                    'source_url': 'https://alsovalid.example.com',
+                    'relevance_score': 0.6,
+                },
+            ],
+            'gap_analysis': None,
+            'internal_ops': None,
+            'gap_correlations': [],
+            'web_sources': [],
+            'synthesis_text': '',
+        }
+
+        finalize_result(state)
+
+        saved = CompetitorCaseStudy.objects.filter(research_job=job)
+        saved_names = list(saved.values_list('competitor_name', flat=True))
+        assert 'Good Corp' in saved_names
+        assert 'Also Good Corp' in saved_names
+        assert 'Bad Corp' not in saved_names
+        assert saved.count() == 2
+
+
+# ---------------------------------------------------------------------------
+# Task 3.3 — warning propagation in search_competitors
+# ---------------------------------------------------------------------------
+
+class TestSearchCompetitorsWarning:
+    def test_adds_warning_to_state_on_exception(self):
+        """search_competitors appends a warning to state when an exception occurs."""
+        from research.graph.nodes import search_competitors
+        from unittest.mock import patch, MagicMock
+
+        with patch('research.services.competitor.CompetitorSearchService') as MockSvc:
+            MockSvc.return_value.search_competitor_case_studies.side_effect = Exception("API timeout")
+
+            with patch('research.services.gemini.GeminiClient'):
+                state = {
+                    'status': 'competitor_search',
+                    'client_name': 'TestCo',
+                    'vertical': 'tech',
+                    'research_report': {},
+                    'web_sources': [],
+                }
+                result = search_competitors(state)
+
+        assert result['competitor_case_studies'] == []
+        assert result['status'] == 'gap_analysis'
+        warnings = result.get('warnings', [])
+        assert len(warnings) > 0
+        assert any('competitor' in w.lower() or 'Competitor' in w for w in warnings)

@@ -2,6 +2,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from django.conf import settings
+from django.db import transaction
 from .state import ResearchState
 
 logger = logging.getLogger(__name__)
@@ -206,11 +207,14 @@ def search_competitors(state: ResearchState) -> ResearchState:
 
     except Exception as e:
         logger.exception("Error during competitor search")
-        # Non-fatal, continue without competitor data
+        # Non-fatal, continue without competitor data — surface failure in warnings
         return {
             **state,
             'status': 'gap_analysis',
             'competitor_case_studies': [],
+            'warnings': (state.get('warnings') or []) + [
+                f'Competitor search failed: {str(e)}'
+            ],
         }
 
 
@@ -514,26 +518,35 @@ def finalize_result(state: ResearchState) -> ResearchState:
     except Exception as e:
         logger.exception("Error saving ResearchReport for job %s", job_id)
 
-    # Create CompetitorCaseStudy records — isolated so a bad URL cannot block gap/intel saves
-    try:
-        case_studies = state.get('competitor_case_studies', [])
-        # Delete stale records before re-creating — prevents duplicates on retry
-        CompetitorCaseStudy.objects.filter(research_job=job).delete()
-        for cs in case_studies:
-            CompetitorCaseStudy.objects.create(
-                research_job=job,
-                competitor_name=cs.get('competitor_name', '')[:255],
-                vertical=cs.get('vertical', '')[:50],
-                case_study_title=cs.get('case_study_title', '')[:500],
-                summary=cs.get('summary', ''),
-                technologies_used=cs.get('technologies_used', []),
-                outcomes=cs.get('outcomes', []),
-                source_url=cs.get('source_url', '')[:2000],  # CompetitorCaseStudy.source_url max_length=2000
-                relevance_score=cs.get('relevance_score', 0.0),
+    # Create CompetitorCaseStudy records — per-record isolation so one bad entry cannot
+    # wipe all others.  The delete still runs first to prevent duplicates on retry.
+    case_studies = state.get('competitor_case_studies', [])
+    CompetitorCaseStudy.objects.filter(research_job=job).delete()
+    saved_count = 0
+    for cs in case_studies:
+        try:
+            with transaction.atomic():
+                CompetitorCaseStudy.objects.create(
+                    research_job=job,
+                    competitor_name=cs.get('competitor_name', '')[:255],
+                    vertical=cs.get('vertical', '')[:50],
+                    case_study_title=cs.get('case_study_title', '')[:500],
+                    summary=cs.get('summary', ''),
+                    technologies_used=cs.get('technologies_used', []),
+                    outcomes=cs.get('outcomes', []),
+                    source_url=cs.get('source_url', '')[:2000],
+                    relevance_score=cs.get('relevance_score', 0.0),
+                )
+            saved_count += 1
+        except Exception as cs_err:
+            logger.warning(
+                "Skipped competitor record '%s' for job %s: %s",
+                cs.get('competitor_name', 'unknown'), job_id, cs_err,
             )
-        logger.info(f"CompetitorCaseStudy records saved for job {job_id}")
-    except Exception as e:
-        logger.exception("Error saving CompetitorCaseStudy records for job %s", job_id)
+    logger.info(
+        "Saved %d/%d CompetitorCaseStudy records for job %s",
+        saved_count, len(case_studies), job_id,
+    )
 
     # Create GapAnalysis record — isolated from competitor save failures
     try:
