@@ -395,7 +395,7 @@ IMPORTANT:
 
     def _parse_ops_data(self, data: dict) -> InternalOpsData:
         """Parse raw JSON dict into InternalOpsData."""
-        es_data = data.get('employee_sentiment', {})
+        es_data = data.get('employee_sentiment') or {}
         employee_sentiment = EmployeeSentiment(
             overall_rating=float(es_data.get('overall_rating') or 0.0),
             work_life_balance=float(es_data.get('work_life_balance') or 0.0),
@@ -403,18 +403,18 @@ IMPORTANT:
             culture=float(es_data.get('culture') or 0.0),
             management=float(es_data.get('management') or 0.0),
             recommend_pct=int(es_data.get('recommend_pct') or 0),
-            positive_themes=es_data.get('positive_themes', []),
-            negative_themes=es_data.get('negative_themes', []),
-            trend=es_data.get('trend', 'stable'),
+            positive_themes=es_data.get('positive_themes') or [],
+            negative_themes=es_data.get('negative_themes') or [],
+            trend=es_data.get('trend') or 'stable',
         )
 
-        li_data = data.get('linkedin_presence', {})
+        li_data = data.get('linkedin_presence') or {}
         linkedin_presence = LinkedInPresence(
             follower_count=int(li_data.get('follower_count') or 0),
-            engagement_level=li_data.get('engagement_level', 'medium'),
-            recent_posts=li_data.get('recent_posts', []),
-            employee_trend=li_data.get('employee_trend', 'stable'),
-            notable_changes=li_data.get('notable_changes', []),
+            engagement_level=li_data.get('engagement_level') or 'medium',
+            recent_posts=li_data.get('recent_posts') or [],
+            employee_trend=li_data.get('employee_trend') or 'stable',
+            notable_changes=li_data.get('notable_changes') or [],
         )
 
         social_media_mentions = [
@@ -424,25 +424,25 @@ IMPORTANT:
                 sentiment=sm.get('sentiment', 'neutral'),
                 topic=sm.get('topic', ''),
             )
-            for sm in data.get('social_media_mentions', [])
+            for sm in (data.get('social_media_mentions') or [])
         ]
 
-        jp_data = data.get('job_postings', {})
+        jp_data = data.get('job_postings') or {}
         job_postings = JobPostings(
             total_openings=int(jp_data.get('total_openings') or 0),
-            departments_hiring=jp_data.get('departments_hiring', {}),
-            skills_sought=jp_data.get('skills_sought', []),
-            seniority_distribution=jp_data.get('seniority_distribution', {}),
-            urgency_signals=jp_data.get('urgency_signals', []),
-            insights=jp_data.get('insights', ''),
+            departments_hiring=jp_data.get('departments_hiring') or {},
+            skills_sought=jp_data.get('skills_sought') or [],
+            seniority_distribution=jp_data.get('seniority_distribution') or {},
+            urgency_signals=jp_data.get('urgency_signals') or [],
+            insights=jp_data.get('insights') or '',
         )
 
-        ns_data = data.get('news_sentiment', {})
+        ns_data = data.get('news_sentiment') or {}
         news_sentiment = NewsSentiment(
-            overall_sentiment=ns_data.get('overall_sentiment', 'neutral'),
-            coverage_volume=ns_data.get('coverage_volume', 'low'),
-            topics=ns_data.get('topics', []),
-            headlines=ns_data.get('headlines', []),
+            overall_sentiment=ns_data.get('overall_sentiment') or 'neutral',
+            coverage_volume=ns_data.get('coverage_volume') or 'low',
+            topics=ns_data.get('topics') or [],
+            headlines=ns_data.get('headlines') or [],
         )
 
         return InternalOpsData(
@@ -451,10 +451,10 @@ IMPORTANT:
             social_media_mentions=social_media_mentions,
             job_postings=job_postings,
             news_sentiment=news_sentiment,
-            key_insights=data.get('key_insights', []),
-            confidence_score=float(data.get('confidence_score', 0.0)),
-            data_freshness=data.get('data_freshness', 'unknown'),
-            analysis_notes=data.get('analysis_notes', ''),
+            key_insights=data.get('key_insights') or [],
+            confidence_score=float(data.get('confidence_score') or 0.0),
+            data_freshness=data.get('data_freshness') or 'unknown',
+            analysis_notes=data.get('analysis_notes') or '',
         )
 
     def create_internal_ops_model(
