@@ -9,7 +9,7 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 
-def _extract_json_from_response(text: str) -> str:
+def extract_json_from_response(text: str) -> str:
     """Strip markdown fences and extract the JSON object from a Gemini response."""
     text = text.strip()
     # Remove any number of opening ``` fences
@@ -26,6 +26,10 @@ def _extract_json_from_response(text: str) -> str:
     if start != -1 and end != -1 and end > start:
         text = text[start:end + 1]
     return text
+
+
+# Backward-compatibility alias — existing callers that use the private name continue to work.
+_extract_json_from_response = extract_json_from_response
 
 
 def _strip_invalid_citations(data: dict, max_n: int) -> dict:
@@ -686,7 +690,7 @@ Respond with ONLY the vertical name (e.g., "healthcare" or "finance"), nothing e
                         model=self.MODEL_FLASH,
                         contents=format_prompt,
                     )
-                    response_text = _extract_json_from_response(format_response.text)
+                    response_text = extract_json_from_response(format_response.text)
                     data = json.loads(response_text)
 
                     # Strip out-of-range citation markers that the LLM may have hallucinated
