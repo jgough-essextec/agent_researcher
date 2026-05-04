@@ -22,6 +22,16 @@ import {
   MemoryEntry,
   Citation,
 } from '@/types';
+import type {
+  OsintJob,
+  OsintCommandsResponse,
+  CreateOsintJobParams,
+  TerminalSubmission,
+  SubdomainFinding,
+  EmailSecurityFinding,
+  InfrastructureFinding,
+  ServiceMapping,
+} from '../types/osint';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
@@ -488,3 +498,107 @@ class ApiClient {
 }
 
 export const api = new ApiClient(API_URL);
+
+// ============ OSINT (standalone exports) ============
+
+export const createOsintJob = async (params: CreateOsintJobParams): Promise<OsintJob> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getOsintJob = async (id: string): Promise<OsintJob> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const listOsintJobs = async (): Promise<OsintJob[]> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const executeOsintJob = async (id: string): Promise<OsintJob> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/execute/`, { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getOsintCommands = async (id: string): Promise<OsintCommandsResponse> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/commands/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const submitTerminalOutput = async (
+  id: string,
+  submissions: TerminalSubmission[]
+): Promise<OsintJob> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/submit-terminal-output/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ submissions }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const uploadOsintScreenshot = async (
+  id: string,
+  file: File,
+  source: string,
+  caption?: string
+): Promise<{ screenshot_id: string }> => {
+  const form = new FormData();
+  form.append('image', file);
+  form.append('source', source);
+  if (caption) form.append('caption', caption);
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/submit-screenshots/`, {
+    method: 'POST',
+    body: form,
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const skipOsintScreenshots = async (id: string): Promise<void> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/skip-screenshots/`, { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+};
+
+export const generateOsintReport = async (id: string): Promise<void> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/generate-report/`, { method: 'POST' });
+  if (!res.ok) throw new Error(await res.text());
+};
+
+export const getOsintReportDownloadUrl = (id: string): string =>
+  `${API_URL}/api/osint/jobs/${id}/report/`;
+
+export const getOsintSubdomains = async (id: string): Promise<SubdomainFinding[]> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/subdomains/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getOsintEmailSecurity = async (id: string): Promise<EmailSecurityFinding[]> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/email-security/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getOsintInfrastructure = async (id: string): Promise<InfrastructureFinding[]> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/infrastructure/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};
+
+export const getOsintServiceMappings = async (id: string): Promise<ServiceMapping[]> => {
+  const res = await fetch(`${API_URL}/api/osint/jobs/${id}/service-mappings/`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+};

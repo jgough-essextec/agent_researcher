@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'ideation',
     'assets',
     'projects',
+    'osint',
 ]
 
 MIDDLEWARE = [
@@ -143,3 +144,8 @@ REST_FRAMEWORK = {
 
 # CORS settings
 CORS_ALLOWED_ORIGINS = env('CORS_ALLOWED_ORIGINS')
+
+# OSINT settings
+SHODAN_API_KEY = env('SHODAN_API_KEY', default='')
+MEDIA_ROOT = env('MEDIA_ROOT', default=str(BASE_DIR / 'media'))
+MEDIA_URL = '/media/'

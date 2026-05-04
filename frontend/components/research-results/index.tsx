@@ -14,6 +14,7 @@ import RawTab from './tabs/RawTab';
 import GenerateTab from './tabs/GenerateTab';
 import ResearchCompletionBanner from '@/components/ResearchCompletionBanner';
 import TabErrorBoundary from './shared/TabErrorBoundary';
+import { OsintLaunchPanel } from '@/components/osint/OsintLaunchPanel';
 
 interface ResearchResultsProps {
   job: ResearchJob;
@@ -21,7 +22,7 @@ interface ResearchResultsProps {
   iterationId?: string;
 }
 
-type TabId = 'overview' | 'report' | 'competitors' | 'gaps' | 'intel' | 'sources' | 'raw' | 'generate';
+type TabId = 'overview' | 'report' | 'competitors' | 'gaps' | 'intel' | 'sources' | 'raw' | 'generate' | 'osint';
 
 export default function ResearchResults({ job, projectId, iterationId }: ResearchResultsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
@@ -52,6 +53,7 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
     { id: 'sources' as TabId, label: 'Sources', available: !!(job.report?.web_sources?.length), cta: false },
     { id: 'raw' as TabId, label: 'Debug', available: !!(job.result || isPartial), cta: false },
     { id: 'generate' as TabId, label: 'Generate', available: isCompleted, cta: true },
+    { id: 'osint' as TabId, label: 'OSINT', available: isCompleted, cta: true },
   ];
 
   return (
@@ -117,13 +119,21 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
                 key={tab.id}
                 data-testid={`tab-${tab.id}`}
                 onClick={() => setActiveTab(tab.id)}
-                className={`ml-auto mr-2 my-1.5 px-3 py-1 text-sm font-medium whitespace-nowrap rounded-full transition-colors ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
-                }`}
+                className={
+                  tab.id === 'osint'
+                    ? `ml-1 mr-2 my-1.5 px-3 py-1 text-sm font-medium whitespace-nowrap rounded-full transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-slate-700 text-white'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-300'
+                      }`
+                    : `ml-auto mr-2 my-1.5 px-3 py-1 text-sm font-medium whitespace-nowrap rounded-full transition-colors ${
+                        activeTab === tab.id
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                      }`
+                }
               >
-                {tab.label}
+                {tab.id === 'osint' ? '🔍 OSINT' : tab.label}
               </button>
             ) : (
               <button
@@ -228,6 +238,15 @@ export default function ResearchResults({ job, projectId, iterationId }: Researc
                   clientName={job.client_name}
                   projectId={projectId}
                   iterationId={iterationId}
+                />
+              </TabErrorBoundary>
+            )}
+            {activeTab === 'osint' && (
+              <TabErrorBoundary tabName="OSINT">
+                <OsintLaunchPanel
+                  researchJobId={job.id}
+                  companyName={job.client_name}
+                  domain={job.report?.website ?? ''}
                 />
               </TabErrorBoundary>
             )}

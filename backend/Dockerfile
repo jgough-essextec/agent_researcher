@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-# Install system dependencies for weasyprint and psycopg2
+# Install system dependencies for weasyprint, psycopg2, and Pillow (OSINT screenshots)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libpangocairo-1.0-0 \
@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev \
     shared-mime-info \
     libpangoft2-1.0-0 \
+    libjpeg-dev \
+    libwebp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
