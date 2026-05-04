@@ -4,6 +4,9 @@ import logging
 from typing import List, Optional
 from dataclasses import dataclass, field
 
+from .gemini import extract_json_from_response
+from .grounding import conduct_grounded_query
+
 logger = logging.getLogger(__name__)
 
 
@@ -80,20 +83,21 @@ RULES:
         Returns:
             tuple: (List[CompetitorCaseStudyData], Optional[GroundingMetadata])
         """
-        from .grounding import conduct_grounded_query
-
         prompt = self.COMPETITOR_SEARCH_PROMPT.format(
             client_name=client_name,
             vertical=vertical,
             company_overview=company_overview or "Not available",
         )
 
+        model = self.gemini_client.MODEL_FLASH
+        genai_client = self.gemini_client.client
+
         try:
             result = conduct_grounded_query(
-                self.gemini_client.client,
+                genai_client,
                 prompt,
                 'competitor_case_studies',
-                self.gemini_client.MODEL_FLASH,
+                model,
             )
         except Exception as e:
             logger.exception("Error calling grounded query for competitor search")
@@ -106,13 +110,17 @@ RULES:
             return [], grounding_metadata
 
         try:
-            response_text = result.text.strip()
-
-            if response_text.startswith('```'):
-                lines = response_text.split('\n')
-                response_text = '\n'.join(lines[1:-1])
-
-            data = json.loads(response_text)
+            response_text = extract_json_from_response(result.text)
+            try:
+                data = json.loads(response_text)
+            except json.JSONDecodeError:
+                logger.warning("JSON parse failed on first attempt, retrying competitor search...")
+                retry_result = conduct_grounded_query(genai_client, prompt, 'competitor_search', model)
+                if retry_result.success and retry_result.text:
+                    response_text = extract_json_from_response(retry_result.text)
+                    data = json.loads(response_text)
+                else:
+                    raise
             case_studies = []
 
             for cs in data.get('case_studies', []):

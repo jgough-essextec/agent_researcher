@@ -184,4 +184,57 @@ describe('InsideIntelTab', () => {
     const { container } = render(<InsideIntelTab intel={fullIntel} sources={sources} />);
     expect(container).toBeTruthy();
   });
+
+  // --- 17. No crash when all nested sentiment/job/linkedin/news fields are null ---
+  it('renders without crash when all nested sentiment/job/linkedin/news fields are null', () => {
+    const nullIntel = {
+      id: 'null-test',
+      employee_sentiment: {
+        overall_rating: null,
+        work_life_balance: null,
+        compensation: null,
+        culture: null,
+        management: null,
+        recommend_pct: null,
+        positive_themes: null,
+        negative_themes: null,
+        trend: null,
+      },
+      linkedin_presence: {
+        follower_count: null,
+        engagement_level: 'medium' as const,
+        recent_posts: null,
+        employee_trend: 'stable' as const,
+        notable_changes: null,
+      },
+      social_media_mentions: [],
+      job_postings: {
+        total_openings: 0,
+        departments_hiring: null,
+        skills_sought: null,
+        seniority_distribution: null,
+        urgency_signals: null,
+        insights: '',
+      },
+      news_sentiment: {
+        overall_sentiment: 'neutral' as const,
+        coverage_volume: 'low' as const,
+        topics: null,
+        headlines: null,
+      },
+      key_insights: [],
+      gap_correlations: [],
+      confidence_score: null,
+      data_freshness: 'last_30_days',
+      analysis_notes: '',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+    } as any;
+
+    // Should NOT throw any TypeError
+    const { container } = render(<InsideIntelTab intel={nullIntel} />);
+    expect(container).toBeTruthy();
+    // Should show 0.0/5.0 (not crash), since overall_rating is null -> defaults to 0
+    expect(screen.queryByText('0.0/5.0')).not.toBeNull();
+  });
 });

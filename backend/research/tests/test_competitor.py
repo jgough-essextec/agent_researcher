@@ -97,7 +97,7 @@ class TestCompetitorSearchService:
         result.grounding_metadata = grounding_metadata
         return result
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_returns_list_of_case_studies(self, mock_grounded, mock_gemini_client, sample_case_studies_json):
         mock_grounded.return_value = self._make_grounded_result(sample_case_studies_json)
 
@@ -114,7 +114,7 @@ class TestCompetitorSearchService:
         assert case_studies[0].relevance_score == 0.85
         assert "Python" in case_studies[0].technologies_used
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_handles_json_parse_error_gracefully(self, mock_grounded, mock_gemini_client):
         mock_grounded.return_value = self._make_grounded_result("not valid json at all")
 
@@ -126,7 +126,7 @@ class TestCompetitorSearchService:
 
         assert case_studies == []
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_strips_markdown_code_blocks(self, mock_grounded, mock_gemini_client, sample_case_studies_json):
         wrapped = f"```json\n{sample_case_studies_json}\n```"
         mock_grounded.return_value = self._make_grounded_result(wrapped)
@@ -139,7 +139,7 @@ class TestCompetitorSearchService:
 
         assert len(case_studies) == 2
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_handles_empty_response(self, mock_grounded, mock_gemini_client):
         mock_grounded.return_value = self._make_grounded_result(success=False, text="")
 
@@ -151,7 +151,7 @@ class TestCompetitorSearchService:
 
         assert case_studies == []
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_handles_api_exception_gracefully(self, mock_grounded, mock_gemini_client):
         mock_grounded.side_effect = Exception("Network error")
 
@@ -163,7 +163,7 @@ class TestCompetitorSearchService:
 
         assert case_studies == []
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_truncates_long_source_urls(self, mock_grounded, mock_gemini_client):
         """Regression: source_url max_length=2000 in model; service stores raw URL."""
         long_url = "https://example.com/" + "x" * 2500
@@ -190,7 +190,7 @@ class TestCompetitorSearchService:
         # Service stores the raw URL; truncation happens in finalize_result node
         assert case_studies[0].source_url == long_url
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_returns_empty_list_for_empty_case_studies(self, mock_grounded, mock_gemini_client):
         payload = json.dumps({"case_studies": []})
         mock_grounded.return_value = self._make_grounded_result(payload)
@@ -211,7 +211,7 @@ class TestCompetitorSearchService:
 @pytest.mark.django_db
 class TestSearchCompetitorsNode:
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_competitors_node_success(self, mock_grounded):
         from research.graph.nodes import search_competitors
 
@@ -245,7 +245,7 @@ class TestSearchCompetitorsNode:
         assert len(result['competitor_case_studies']) == 1
         assert result['competitor_case_studies'][0]['competitor_name'] == 'RivalCo'
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_competitors_node_non_fatal_on_failure(self, mock_grounded):
         from research.graph.nodes import search_competitors
 
@@ -264,7 +264,7 @@ class TestSearchCompetitorsNode:
         assert result['status'] == 'gap_analysis'
         assert result['competitor_case_studies'] == []
 
-    @patch('research.services.grounding.conduct_grounded_query')
+    @patch('research.services.competitor.conduct_grounded_query')
     def test_search_competitors_node_merges_web_sources(self, mock_grounded):
         from research.graph.nodes import search_competitors
 
@@ -301,3 +301,73 @@ class TestSearchCompetitorsNode:
         result = search_competitors(state)
 
         assert result['status'] == 'failed'
+
+
+# ---------------------------------------------------------------------------
+# Preamble / Retry Tests
+# ---------------------------------------------------------------------------
+
+class TestCompetitorSearchServicePreambleAndRetry:
+
+    def test_search_handles_preamble_in_gemini_response(self):
+        """competitor.py uses extract_json_from_response to handle preamble text."""
+        from research.services.competitor import CompetitorSearchService
+        from unittest.mock import MagicMock, patch
+
+        # Gemini returns text WITH preamble before the JSON fence
+        preamble_response = (
+            'Here are the relevant competitor case studies I found:\n'
+            '```json\n'
+            '{"case_studies": [{"competitor_name": "RivalCo", "vertical": "technology", '
+            '"case_study_title": "AI at Scale", "summary": "Did great things.", '
+            '"technologies_used": ["Python", "TensorFlow"], "outcomes": ["10x improvement"], '
+            '"source_url": "https://example.com/case", "relevance_score": 0.9}]}\n'
+            '```\n'
+            'I hope these are helpful!'
+        )
+
+        mock_result = MagicMock()
+        mock_result.success = True
+        mock_result.text = preamble_response
+        mock_result.grounding_metadata = None
+
+        with patch('research.services.competitor.conduct_grounded_query', return_value=mock_result):
+            mock_gemini = MagicMock()
+            service = CompetitorSearchService(mock_gemini)
+            case_studies, _ = service.search_competitor_case_studies(
+                client_name='TestCo',
+                vertical='technology',
+                company_overview='A tech company.',
+            )
+
+        assert len(case_studies) == 1
+        assert case_studies[0].competitor_name == 'RivalCo'
+
+    def test_search_retries_on_json_decode_error(self):
+        """On first JSONDecodeError, competitor service retries once."""
+        from research.services.competitor import CompetitorSearchService
+        from unittest.mock import MagicMock, patch, call
+
+        # First call returns bad JSON, second call returns valid JSON
+        bad_response = MagicMock()
+        bad_response.success = True
+        bad_response.text = 'This is not valid JSON at all!!!'
+        bad_response.grounding_metadata = None
+
+        good_response = MagicMock()
+        good_response.success = True
+        good_response.text = '{"case_studies": [{"competitor_name": "RetryCo", "vertical": "tech", "case_study_title": "Retry Works", "summary": "OK.", "technologies_used": [], "outcomes": [], "source_url": "https://retry.com", "relevance_score": 0.7}]}'
+        good_response.grounding_metadata = None
+
+        with patch('research.services.competitor.conduct_grounded_query', side_effect=[bad_response, good_response]) as mock_query:
+            mock_gemini = MagicMock()
+            service = CompetitorSearchService(mock_gemini)
+            case_studies, _ = service.search_competitor_case_studies(
+                client_name='TestCo',
+                vertical='tech',
+                company_overview='A company.',
+            )
+
+        assert mock_query.call_count == 2
+        assert len(case_studies) == 1
+        assert case_studies[0].competitor_name == 'RetryCo'
