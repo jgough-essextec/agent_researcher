@@ -1,3 +1,4 @@
+from copy import deepcopy
 from rest_framework import serializers
 from .models import ResearchJob, ResearchReport, CompetitorCaseStudy, GapAnalysis, InternalOpsIntel
 
@@ -138,7 +139,7 @@ class InternalOpsIntelSerializer(serializers.ModelSerializer):
         def _fill_defaults(field_name: str, defaults: dict) -> None:
             """Merge stored JSON with defaults, replacing any None values."""
             stored = data.get(field_name) or {}
-            merged = {**defaults, **{k: v for k, v in stored.items() if v is not None}}
+            merged = {**deepcopy(defaults), **{k: v for k, v in stored.items() if v is not None}}
             data[field_name] = merged
 
         _fill_defaults('employee_sentiment', _EMPLOYEE_SENTIMENT_DEFAULTS)
