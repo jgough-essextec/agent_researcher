@@ -476,8 +476,14 @@ def finalize_result(state: ResearchState) -> ResearchState:
         if state.get('vertical'):
             job.vertical = state['vertical']
             job.save(update_fields=['vertical'])
+    except Exception:
+        logger.exception("Error saving vertical for job %s", job_id)
 
-        # Create ResearchReport (always — even for partial, to persist web_sources + synthesis_text)
+    # Create ResearchReport — wrapped in its own savepoint so a validation error
+    # (e.g. URLField rejecting a bare domain like "fhlbatl.com") aborts only this
+    # savepoint and does NOT poison the outer PostgreSQL transaction, which would
+    # otherwise cause all subsequent job.save() calls to silently fail.
+    try:
         report_data = state.get('research_report', {}) or {}
         founded_year = report_data.get('founded_year')
         if founded_year is not None:
@@ -486,34 +492,39 @@ def finalize_result(state: ResearchState) -> ResearchState:
             except (ValueError, TypeError):
                 founded_year = None
 
-        ResearchReport.objects.update_or_create(
-            research_job=job,
-            defaults={
-                'company_overview': report_data.get('company_overview', ''),
-                'founded_year': founded_year,
-                'headquarters': report_data.get('headquarters', ''),
-                'employee_count': report_data.get('employee_count', ''),
-                'annual_revenue': report_data.get('annual_revenue', ''),
-                'website': report_data.get('website', ''),
-                'recent_news': report_data.get('recent_news', []),
-                'decision_makers': report_data.get('decision_makers', []),
-                'pain_points': report_data.get('pain_points', []),
-                'opportunities': report_data.get('opportunities', []),
-                'digital_maturity': report_data.get('digital_maturity', ''),
-                'ai_footprint': report_data.get('ai_footprint', ''),
-                'ai_adoption_stage': report_data.get('ai_adoption_stage', ''),
-                'strategic_goals': report_data.get('strategic_goals', []),
-                'key_initiatives': report_data.get('key_initiatives', []),
-                'talking_points': report_data.get('talking_points', []),
-                'cloud_footprint': report_data.get('cloud_footprint', ''),
-                'security_posture': report_data.get('security_posture', ''),
-                'data_maturity': report_data.get('data_maturity', ''),
-                'financial_signals': report_data.get('financial_signals', []),
-                'tech_partnerships': report_data.get('tech_partnerships', []),
-                'web_sources': state.get('web_sources', []),
-                'synthesis_text': state.get('synthesis_text', ''),
-            }
-        )
+        raw_website = report_data.get('website', '') or ''
+        if raw_website and '://' not in raw_website:
+            raw_website = f'https://{raw_website}'
+
+        with transaction.atomic():
+            ResearchReport.objects.update_or_create(
+                research_job=job,
+                defaults={
+                    'company_overview': report_data.get('company_overview', ''),
+                    'founded_year': founded_year,
+                    'headquarters': report_data.get('headquarters', ''),
+                    'employee_count': report_data.get('employee_count', ''),
+                    'annual_revenue': report_data.get('annual_revenue', ''),
+                    'website': raw_website,
+                    'recent_news': report_data.get('recent_news', []),
+                    'decision_makers': report_data.get('decision_makers', []),
+                    'pain_points': report_data.get('pain_points', []),
+                    'opportunities': report_data.get('opportunities', []),
+                    'digital_maturity': report_data.get('digital_maturity', ''),
+                    'ai_footprint': report_data.get('ai_footprint', ''),
+                    'ai_adoption_stage': report_data.get('ai_adoption_stage', ''),
+                    'strategic_goals': report_data.get('strategic_goals', []),
+                    'key_initiatives': report_data.get('key_initiatives', []),
+                    'talking_points': report_data.get('talking_points', []),
+                    'cloud_footprint': report_data.get('cloud_footprint', ''),
+                    'security_posture': report_data.get('security_posture', ''),
+                    'data_maturity': report_data.get('data_maturity', ''),
+                    'financial_signals': report_data.get('financial_signals', []),
+                    'tech_partnerships': report_data.get('tech_partnerships', []),
+                    'web_sources': state.get('web_sources', []),
+                    'synthesis_text': state.get('synthesis_text', ''),
+                }
+            )
         logger.info(f"ResearchReport saved for job {job_id}")
     except Exception as e:
         logger.exception("Error saving ResearchReport for job %s", job_id)
