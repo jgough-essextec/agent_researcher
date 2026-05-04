@@ -209,3 +209,63 @@ class TestResearchJobDetailSerializer:
         assert data['status'] == 'completed'
         assert data['vertical'] == 'technology'
         assert data['client_name'] == 'Test Corp'
+
+
+# ---------------------------------------------------------------------------
+# InternalOpsIntelSerializer — to_representation() defaults
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestInternalOpsIntelSerializerDefaults:
+    """to_representation() must fill safe defaults for null/missing JSON sub-fields."""
+
+    def _make_job(self):
+        return ResearchJob.objects.create(client_name="Test", status="completed")
+
+    def test_fills_empty_list_for_null_positive_themes(self):
+        from research.serializers import InternalOpsIntelSerializer
+        from research.models import InternalOpsIntel
+        job = self._make_job()
+        intel = InternalOpsIntel.objects.create(
+            research_job=job,
+            employee_sentiment={"overall_rating": 3.0, "positive_themes": None, "negative_themes": None},
+        )
+        data = InternalOpsIntelSerializer(intel).data
+        assert data["employee_sentiment"]["positive_themes"] == []
+        assert data["employee_sentiment"]["negative_themes"] == []
+
+    def test_fills_empty_dict_for_null_departments_hiring(self):
+        from research.serializers import InternalOpsIntelSerializer
+        from research.models import InternalOpsIntel
+        job = self._make_job()
+        intel = InternalOpsIntel.objects.create(
+            research_job=job,
+            job_postings={"total_openings": 10, "departments_hiring": None, "skills_sought": None},
+        )
+        data = InternalOpsIntelSerializer(intel).data
+        assert data["job_postings"]["departments_hiring"] == {}
+        assert data["job_postings"]["skills_sought"] == []
+
+    def test_fills_empty_list_for_null_news_topics(self):
+        from research.serializers import InternalOpsIntelSerializer
+        from research.models import InternalOpsIntel
+        job = self._make_job()
+        intel = InternalOpsIntel.objects.create(
+            research_job=job,
+            news_sentiment={"overall_sentiment": "neutral", "topics": None, "headlines": None},
+        )
+        data = InternalOpsIntelSerializer(intel).data
+        assert data["news_sentiment"]["topics"] == []
+        assert data["news_sentiment"]["headlines"] == []
+
+    def test_preserves_valid_data(self):
+        from research.serializers import InternalOpsIntelSerializer
+        from research.models import InternalOpsIntel
+        job = self._make_job()
+        intel = InternalOpsIntel.objects.create(
+            research_job=job,
+            employee_sentiment={"overall_rating": 4.2, "positive_themes": ["Great!"]},
+        )
+        data = InternalOpsIntelSerializer(intel).data
+        assert data["employee_sentiment"]["overall_rating"] == 4.2
+        assert data["employee_sentiment"]["positive_themes"] == ["Great!"]
