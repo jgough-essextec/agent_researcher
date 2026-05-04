@@ -245,6 +245,49 @@ class TestInternalOpsService:
 
         assert ops_data.employee_sentiment.overall_rating == 3.8
 
+    def test_synthesis_handles_preamble_in_response(self):
+        """InternalOpsService parses JSON even when Gemini wraps it with preamble text."""
+        import json
+        from research.services.internal_ops import InternalOpsService
+        from unittest.mock import MagicMock, patch
+
+        valid_data = {
+            "employee_sentiment": {"overall_rating": 3.8, "work_life_balance": 3.5,
+                                    "compensation": 3.7, "culture": 3.6, "management": 3.4,
+                                    "recommend_pct": 68, "positive_themes": ["Good benefits"],
+                                    "negative_themes": ["Long hours"], "trend": "stable"},
+            "linkedin_presence": {"follower_count": 50000, "engagement_level": "medium",
+                                   "recent_posts": [], "employee_trend": "growing", "notable_changes": []},
+            "social_media_mentions": [],
+            "job_postings": {"total_openings": 45, "departments_hiring": {"Engineering": 20},
+                              "skills_sought": ["Python"], "seniority_distribution": {"Senior": 10},
+                              "urgency_signals": [], "insights": "Heavy tech hiring."},
+            "news_sentiment": {"overall_sentiment": "positive", "coverage_volume": "medium",
+                                "topics": ["AI"], "headlines": []},
+            "key_insights": ["Investing in AI."],
+            "confidence_score": 0.75,
+            "data_freshness": "last_30_days",
+            "analysis_notes": "Test data."
+        }
+
+        # Gemini wraps response with preamble and trailing text
+        preamble_response = f'Analysis complete!\n```json\n{json.dumps(valid_data)}\n```\nHope this helps.'
+
+        mock_gemini = MagicMock()
+        mock_gemini.generate_text.return_value = preamble_response
+
+        empty_result = MagicMock()
+        empty_result.text = "No data available."
+        empty_result.success = False
+
+        with patch('research.services.grounding.conduct_grounded_query', return_value=empty_result):
+            service = InternalOpsService(mock_gemini)
+            service.gemini_client = mock_gemini
+            ops_data, _ = service.research_internal_ops(client_name="TestCo")
+
+        assert ops_data.employee_sentiment.overall_rating == 3.8
+        assert ops_data.employee_sentiment.positive_themes == ["Good benefits"]
+
 
 # ============================================================================
 # Unit Tests: GapCorrelationService

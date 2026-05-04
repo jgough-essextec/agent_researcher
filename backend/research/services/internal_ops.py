@@ -7,8 +7,10 @@ and current priorities.
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
+
+from .gemini import extract_json_from_response
 
 logger = logging.getLogger(__name__)
 
@@ -376,11 +378,7 @@ IMPORTANT:
 
         try:
             response = self.gemini_client.generate_text(synthesis_prompt)
-            response_text = response.strip()
-
-            if response_text.startswith('```'):
-                lines = response_text.split('\n')
-                response_text = '\n'.join(lines[1:-1])
+            response_text = extract_json_from_response(response)
 
             data = json.loads(response_text)
             ops_data = self._parse_ops_data(data)
