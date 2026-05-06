@@ -613,15 +613,16 @@ def finalize_result(state: ResearchState) -> ResearchState:
     except Exception as mem_error:
         logger.warning(f"Memory capture failed (non-fatal): {mem_error}")
 
-    # Persist final status to DB here so the job shows as completed/partial even if the
-    # HTTP request handler is interrupted (e.g. Cloud Run timeout).
+    # Persist final status to DB — isolated savepoint so any earlier transaction
+    # failure (memory capture, non-fatal node error) cannot prevent this write.
     final_status = 'partial' if is_partial else 'completed'
     try:
-        job.status = final_status
-        job.current_step = ''
-        job.result = state.get('result', '') or state.get('synthesis_text', '')
-        job.error = '; '.join(state.get('warnings') or []) if is_partial else ''
-        job.save(update_fields=['status', 'current_step', 'result', 'error'])
+        with transaction.atomic():
+            job.status = final_status
+            job.current_step = ''
+            job.result = state.get('result', '') or state.get('synthesis_text', '')
+            job.error = '; '.join(state.get('warnings') or []) if is_partial else ''
+            job.save(update_fields=['status', 'current_step', 'result', 'error'])
         logger.info(f"Job {job_id} persisted as {final_status} in DB")
     except Exception as e:
         logger.exception("Error persisting final job status for %s", job_id)
