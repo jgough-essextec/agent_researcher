@@ -137,6 +137,53 @@ class ResearchJobExecuteView(APIView):
         return Response(serializer.data)
 
 
+class ResearchJobRecoverView(APIView):
+    """Recover a job stuck in 'running' status.
+
+    Two cases:
+    - running + report exists: finalization completed but status save failed.
+      Action: mark completed immediately, no re-run needed.
+    - running + no report: job crashed before finalization.
+      Action: reset to failed, then re-execute from scratch.
+    """
+
+    def post(self, request, pk):
+        from django.db import transaction as db_transaction
+        try:
+            job = ResearchJob.objects.get(pk=pk)
+        except ResearchJob.DoesNotExist:
+            return Response({'error': 'Research job not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if job.status != 'running':
+            return Response(
+                {'error': f'Job is not stuck — current status: {job.status}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        has_report = ResearchReport.objects.filter(research_job=job).exists()
+
+        if has_report:
+            # Finalization succeeded — just fix the status flag
+            job.status = 'completed'
+            job.current_step = ''
+            job.save(update_fields=['status', 'current_step'])
+            job.refresh_from_db()
+            serializer = ResearchJobDetailSerializer(job)
+            return Response({'recovered': True, 'action': 'marked_complete', 'job': serializer.data})
+
+        # No report — job crashed mid-run, re-execute from scratch
+        with db_transaction.atomic():
+            job = ResearchJob.objects.select_for_update().get(pk=pk)
+            job.status = 'running'
+            job.error = ''
+            job.save(update_fields=['status', 'error'])
+
+        run_research_sync(str(job.id))
+        job.refresh_from_db()
+        serializer = ResearchJobDetailSerializer(job)
+        return Response({'recovered': True, 'action': 'rerun', 'job': serializer.data})
+
+
 class ResearchJobDetailView(generics.RetrieveAPIView):
     """View for retrieving research job details."""
 

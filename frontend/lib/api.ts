@@ -87,6 +87,10 @@ class ApiClient {
     });
   }
 
+  async recoverResearch(id: string): Promise<{ recovered: boolean; action: string; job: ResearchJob }> {
+    return this.request(`/api/research/${id}/recover/`, { method: 'POST' });
+  }
+
   async getResearch(id: string): Promise<ResearchJob> {
     return this.request<ResearchJob>(`/api/research/${id}/`);
   }

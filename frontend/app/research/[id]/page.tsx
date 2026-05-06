@@ -7,6 +7,57 @@ import { ResearchJob } from '@/types';
 import ResearchResults from '@/components/ResearchResults';
 import Link from 'next/link';
 
+const STUCK_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+
+function isStuck(job: ResearchJob): boolean {
+  if (job.status !== 'running') return false;
+  const updatedAt = new Date(job.updated_at).getTime();
+  return Date.now() - updatedAt > STUCK_THRESHOLD_MS;
+}
+
+function StuckJobBanner({ job, onRecovered }: { job: ResearchJob; onRecovered: (j: ResearchJob) => void }) {
+  const [recovering, setRecovering] = useState(false);
+  const [recoverError, setRecoverError] = useState('');
+  const hasReport = !!job.report;
+
+  const handleRecover = async () => {
+    setRecovering(true);
+    setRecoverError('');
+    try {
+      const result = await api.recoverResearch(job.id);
+      onRecovered(result.job);
+    } catch {
+      setRecoverError('Recovery failed. Please try again.');
+      setRecovering(false);
+    }
+  };
+
+  return (
+    <div className="mb-4 bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start justify-between gap-4">
+      <div>
+        <p className="font-medium text-amber-800 text-sm">
+          {hasReport
+            ? 'This job completed but was not marked as finished due to a server issue.'
+            : 'This job appears to be stuck and may have encountered an error.'}
+        </p>
+        <p className="text-amber-700 text-xs mt-1">
+          {hasReport
+            ? 'Click "Mark Complete" to restore it — all your results are intact.'
+            : 'Click "Retry" to re-run the research from scratch.'}
+        </p>
+        {recoverError && <p className="text-red-600 text-xs mt-1">{recoverError}</p>}
+      </div>
+      <button
+        onClick={handleRecover}
+        disabled={recovering}
+        className="flex-shrink-0 px-4 py-2 text-sm font-medium rounded-lg bg-amber-600 hover:bg-amber-700 text-white disabled:opacity-50 transition-colors"
+      >
+        {recovering ? 'Working...' : hasReport ? 'Mark Complete' : 'Retry'}
+      </button>
+    </div>
+  );
+}
+
 export default function ResearchDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -68,6 +119,9 @@ export default function ResearchDetailPage() {
       <div className="mb-4">
         <Link href="/research" className="text-sm text-blue-600 hover:underline">← Back to Research History</Link>
       </div>
+      {job && isStuck(job) && (
+        <StuckJobBanner job={job} onRecovered={(updated) => setJob(updated)} />
+      )}
       {job && <ResearchResults job={job} />}
     </div>
   );
